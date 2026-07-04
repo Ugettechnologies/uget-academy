@@ -113,7 +113,7 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
                 className="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-100 dark:border-slate-850 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-primary transition appearance-none"
               >
                 <option value="">All Actions</option>
-                {distinctActions.map((act) => (
+                {distinctActions.map((act: { action: string }) => (
                   <option key={act.action} value={act.action}>
                     {act.action}
                   </option>
