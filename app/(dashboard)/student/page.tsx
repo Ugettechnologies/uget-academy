@@ -280,7 +280,7 @@ export default async function StudentDashboardPage() {
               </div>
             ) : (
               <div className="relative pl-6 border-l border-slate-800/80 space-y-6">
-                {dbActivities.map((act) => (
+                {dbActivities.map((act: any) => (
                   <div key={act.id} className="relative group">
                     {/* Circle Dot indicator */}
                     <div className="absolute -left-[31px] top-1.5 w-3.5 h-3.5 rounded-full bg-slate-850 border border-slate-800 group-hover:bg-brand-accent group-hover:border-brand-primary transition-all duration-300" />

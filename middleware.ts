@@ -12,7 +12,8 @@ export async function middleware(request: NextRequest) {
     pathname.match(/\.(.*)$/) ||
     pathname === '/login' ||
     pathname.startsWith('/register') ||
-    pathname === '/'
+    pathname === '/' ||
+    pathname === '/unauthorized'
   ) {
     return NextResponse.next();
   }
@@ -33,15 +34,19 @@ export async function middleware(request: NextRequest) {
 
   // Role-based routing protection
   if (pathname.startsWith('/student') && role !== 'STUDENT') {
-    return NextResponse.redirect(new URL(`/${role.toLowerCase()}`, request.url));
+    return NextResponse.redirect(new URL('/unauthorized', request.url));
   }
   
   if (pathname.startsWith('/instructor') && role !== 'INSTRUCTOR') {
-    return NextResponse.redirect(new URL(`/${role.toLowerCase()}`, request.url));
+    return NextResponse.redirect(new URL('/unauthorized', request.url));
   }
   
   if (pathname.startsWith('/admin') && role !== 'ADMIN') {
-    return NextResponse.redirect(new URL(`/${role.toLowerCase()}`, request.url));
+    return NextResponse.redirect(new URL('/unauthorized', request.url));
+  }
+
+  if (pathname.startsWith('/staff') && role !== 'ADMIN' && role !== 'STAFF') {
+    return NextResponse.redirect(new URL('/unauthorized', request.url));
   }
 
   return NextResponse.next();

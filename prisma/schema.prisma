@@ -10,6 +10,7 @@ enum Role {
   STUDENT
   INSTRUCTOR
   ADMIN
+  STAFF
 }
 
 enum PaymentStatus {
@@ -196,4 +197,15 @@ model Exam {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   course        Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  userEmail String
+  action    String   // e.g. 'DELETE_COURSE', 'UPDATE_USER_ROLE'
+  targetId  String?  // id of the record affected, if any
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now())
 }

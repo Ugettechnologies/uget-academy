@@ -18,7 +18,7 @@ export default async function DashboardLayout({
     redirect('/login');
   }
 
-  const role = session.role as 'STUDENT' | 'INSTRUCTOR' | 'ADMIN';
+  const role = session.role as 'STUDENT' | 'INSTRUCTOR' | 'ADMIN' | 'STAFF';
 
   // Navigation Links based on role
   const navLinks = {
@@ -33,12 +33,16 @@ export default async function DashboardLayout({
       { label: 'My Courses', href: '/instructor/courses' },
       { label: 'My Students', href: '/instructor/students' },
     ],
+    STAFF: [
+      { label: 'Dashboard', href: '/staff' },
+    ],
     ADMIN: [
       { label: 'Dashboard', href: '/admin' },
       { label: 'Verify Payments', href: '/admin/payments' },
       { label: 'Students', href: '/admin/students' },
       { label: 'Instructors', href: '/admin/instructors' },
       { label: 'Notifications', href: '/admin/notifications' },
+      { label: 'Audit Log', href: '/admin/audit-log' },
     ],
   };
 
@@ -68,7 +72,7 @@ export default async function DashboardLayout({
 
           <div className="flex items-center gap-4">
             <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
-              {role === 'ADMIN' ? 'Administrator' : role === 'INSTRUCTOR' ? 'Instructor' : 'Student'}
+              {role === 'ADMIN' ? 'Administrator' : role === 'STAFF' ? 'Staff' : role === 'INSTRUCTOR' ? 'Instructor' : 'Student'}
             </span>
 
             {/* Logout Client Form Wrapper */}

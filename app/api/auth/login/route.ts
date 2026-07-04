@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { comparePassword, createSession } from '@/lib/auth';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkLoginRateLimit } from '@/lib/rate-limit';
 import { verifyTurnstile } from '@/lib/turnstile';
 
 const loginSchema = z.object({
@@ -16,17 +16,19 @@ const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 export async function POST(request: Request) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
-  // Rate Limiting
-  const rateLimitResult = await checkRateLimit(ip, 'login');
-  if (!rateLimitResult.success) {
-    return NextResponse.json(
-      { error: 'Too many login attempts. Please try again later.' },
-      { status: 429 }
-    );
-  }
-
   try {
     const body = await request.json();
+    const loginEmail = body?.email || '';
+
+    // Rate Limiting by IP + email
+    const rateLimitResult = await checkLoginRateLimit(ip, loginEmail);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many login attempts. Please try again in a few minutes.' },
+        { status: 429 }
+      );
+    }
+
     const result = loginSchema.safeParse(body);
 
     if (!result.success) {

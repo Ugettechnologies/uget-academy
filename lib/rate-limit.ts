@@ -10,6 +10,34 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
   });
 }
 
+export const loginRateLimit = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, '10 m'), // 5 attempts per 10 minutes
+      prefix: 'ratelimit:login',
+    })
+  : null;
+
+export async function checkLoginRateLimit(ip: string, email: string) {
+  if (!redis || !loginRateLimit) {
+    return { success: true, limit: 5, remaining: 5, reset: Date.now() + 600000 };
+  }
+
+  try {
+    const identifier = `${ip}:${email.toLowerCase()}`;
+    const result = await loginRateLimit.limit(identifier);
+    return {
+      success: result.success,
+      limit: result.limit,
+      remaining: result.remaining,
+      reset: result.reset,
+    };
+  } catch (error) {
+    console.error('Login rate limit error:', error);
+    return { success: true, limit: 0, remaining: 0, reset: 0 };
+  }
+}
+
 export async function checkRateLimit(ip: string, action: string = 'auth') {
   // Fallback for development if Upstash Redis credentials are not configured yet
   if (!redis) {
