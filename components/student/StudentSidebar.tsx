@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
@@ -12,7 +12,12 @@ import {
   FolderDown, 
   User, 
   LogOut,
-  ChevronDown
+  ChevronDown,
+  ChevronUp,
+  PlusCircle,
+  FileCheck,
+  Award,
+  ListTodo
 } from 'lucide-react';
 
 interface StudentSidebarProps {
@@ -25,46 +30,19 @@ interface StudentSidebarProps {
 export default function StudentSidebar({ user }: StudentSidebarProps) {
   const pathname = usePathname();
 
-  const menuItems = [
-    {
-      label: 'Dashboard',
-      href: '/student',
-      icon: LayoutDashboard,
-    },
-    {
-      label: 'Assignments',
-      href: '/student/assignments',
-      icon: FileSpreadsheet,
-      hasDropdown: true,
-    },
-    {
-      label: 'Exams',
-      href: '/student/exams',
-      icon: GraduationCap,
-      hasDropdown: true,
-    },
-    {
-      label: 'Grades',
-      href: '/student/grades',
-      icon: BarChart3,
-    },
-    {
-      label: 'Materials',
-      href: '/student/materials',
-      icon: FolderDown,
-    },
-    {
-      label: 'Profile',
-      href: '/student/profile',
-      icon: User,
-    },
-  ];
+  // Accordion state tracking, open by default for layout alignment
+  const [assignmentsExpanded, setAssignmentsExpanded] = useState(true);
+  const [examsExpanded, setExamsExpanded] = useState(true);
 
   const isActive = (href: string) => {
     if (href === '/student') {
       return pathname === '/student';
     }
-    return pathname.startsWith(href);
+    return pathname === href;
+  };
+
+  const isGroupActive = (prefix: string) => {
+    return pathname.startsWith(prefix);
   };
 
   return (
@@ -93,34 +71,147 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
 
       {/* Navigation List */}
       <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-        {menuItems.map((item) => {
-          const active = isActive(item.href);
-          const Icon = item.icon;
-          return (
-            <div key={item.href} className="space-y-1">
+        {/* Dashboard Link */}
+        <Link
+          href="/student"
+          className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            isActive('/student')
+              ? 'bg-[#E0EEFF] text-[#1E60D5]'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+          }`}
+        >
+          <LayoutDashboard className={`w-5 h-5 ${isActive('/student') ? 'text-[#1E60D5]' : 'text-slate-400'}`} />
+          <span>Dashboard</span>
+        </Link>
+
+        {/* Assignments Accordion */}
+        <div className="space-y-1">
+          <button
+            onClick={() => setAssignmentsExpanded(!assignmentsExpanded)}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              isGroupActive('/student/assignments')
+                ? 'text-[#1E60D5]'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+            }`}
+          >
+            <div className="flex items-center gap-3.5">
+              <FileSpreadsheet className={`w-5 h-5 ${isGroupActive('/student/assignments') ? 'text-[#1E60D5]' : 'text-slate-400'}`} />
+              <span>Assignments</span>
+            </div>
+            {assignmentsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+
+          {assignmentsExpanded && (
+            <div className="pl-9 pr-2 py-1 space-y-1 border-l-2 border-slate-50 ml-6">
               <Link
-                href={item.href}
-                className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 group ${
-                  active
-                    ? 'bg-[#E0EEFF] text-[#1E60D5]'
+                href="/student/assignments"
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                  isActive('/student/assignments')
+                    ? 'bg-[#E0EEFF]/55 text-[#1E60D5]'
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
                 }`}
               >
-                <div className="flex items-center gap-3.5">
-                  <Icon className={`w-5 h-5 transition-transform duration-200 ${
-                    active ? 'text-[#1E60D5]' : 'text-slate-400 group-hover:text-slate-600'
-                  }`} />
-                  <span>{item.label}</span>
-                </div>
-                {item.hasDropdown && (
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${
-                    active ? 'text-[#1E60D5] rotate-180' : 'text-slate-400 group-hover:text-slate-600'
-                  }`} />
-                )}
+                <ListTodo className="w-3.5 h-3.5" />
+                <span>Assignments List</span>
+              </Link>
+              <Link
+                href="/student/assignments/submit"
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                  isActive('/student/assignments/submit')
+                    ? 'bg-[#E0EEFF]/55 text-[#1E60D5]'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                }`}
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>Submit Assignment</span>
               </Link>
             </div>
-          );
-        })}
+          )}
+        </div>
+
+        {/* Exams Accordion */}
+        <div className="space-y-1">
+          <button
+            onClick={() => setExamsExpanded(!examsExpanded)}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+              isGroupActive('/student/exams')
+                ? 'text-[#1E60D5]'
+                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+            }`}
+          >
+            <div className="flex items-center gap-3.5">
+              <GraduationCap className={`w-5 h-5 ${isGroupActive('/student/exams') ? 'text-[#1E60D5]' : 'text-slate-400'}`} />
+              <span>Exams</span>
+            </div>
+            {examsExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+
+          {examsExpanded && (
+            <div className="pl-9 pr-2 py-1 space-y-1 border-l-2 border-slate-50 ml-6">
+              <Link
+                href="/student/exams/practicals"
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                  isActive('/student/exams/practicals')
+                    ? 'bg-[#E0EEFF]/55 text-[#1E60D5]'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                }`}
+              >
+                <FileCheck className="w-3.5 h-3.5" />
+                <span>Practicals</span>
+              </Link>
+              <Link
+                href="/student/exams/quiz"
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                  isActive('/student/exams/quiz')
+                    ? 'bg-[#E0EEFF]/55 text-[#1E60D5]'
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                }`}
+              >
+                <Award className="w-3.5 h-3.5" />
+                <span>Quiz</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Grades Link */}
+        <Link
+          href="/student/grades"
+          className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            isActive('/student/grades')
+              ? 'bg-[#E0EEFF] text-[#1E60D5]'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+          }`}
+        >
+          <BarChart3 className={`w-5 h-5 ${isActive('/student/grades') ? 'text-[#1E60D5]' : 'text-slate-400'}`} />
+          <span>Grades</span>
+        </Link>
+
+        {/* Materials Link */}
+        <Link
+          href="/student/materials"
+          className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            isActive('/student/materials')
+              ? 'bg-[#E0EEFF] text-[#1E60D5]'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+          }`}
+        >
+          <FolderDown className={`w-5 h-5 ${isActive('/student/materials') ? 'text-[#1E60D5]' : 'text-slate-400'}`} />
+          <span>Materials</span>
+        </Link>
+
+        {/* Profile Link */}
+        <Link
+          href="/student/profile"
+          className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+            isActive('/student/profile')
+              ? 'bg-[#E0EEFF] text-[#1E60D5]'
+              : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+          }`}
+        >
+          <User className={`w-5 h-5 ${isActive('/student/profile') ? 'text-[#1E60D5]' : 'text-slate-400'}`} />
+          <span>Profile</span>
+        </Link>
       </nav>
 
       {/* Footer Logout Button */}
@@ -128,7 +219,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
         <form action="/api/auth/logout" method="POST">
           <button
             type="submit"
-            className="flex items-center gap-3 px-4 py-2 text-sm font-bold text-red-500 hover:text-red-600 transition-colors w-full text-left"
+            className="flex items-center gap-3 px-4 py-2 text-sm font-bold text-red-505 hover:text-red-650 transition-colors w-full text-left"
           >
             <LogOut className="w-5 h-5" />
             <span>Logout</span>
