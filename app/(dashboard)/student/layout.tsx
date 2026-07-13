@@ -18,8 +18,8 @@ export default async function StudentLayout({
   }
 
   const user = {
-    firstName: session.firstName || 'Student',
-    lastName: session.lastName || '',
+    firstName: (session.firstName as string) || 'Student',
+    lastName: (session.lastName as string) || '',
   };
 
   return (
