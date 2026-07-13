@@ -8,7 +8,6 @@ import { verifyTurnstile } from '@/lib/turnstile';
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(1, 'Password is required'),
-  turnstileToken: z.string().min(1, 'Captcha token is required'),
 });
 
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
@@ -38,16 +37,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { email, password, turnstileToken } = result.data;
-
-    // Verify Turnstile
-    const isValidCaptcha = await verifyTurnstile(turnstileToken);
-    if (!isValidCaptcha) {
-      return NextResponse.json(
-        { error: 'Captcha verification failed. Please try again.' },
-        { status: 400 }
-      );
-    }
+    const { email, password } = result.data;
 
     const user = await prisma.user.findUnique({
       where: { email: email.toLowerCase() },

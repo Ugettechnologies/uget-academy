@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { User, Mail, Calendar, Shield, Award, Clock, BookOpen, CheckCircle } from 'lucide-react';
 import Link from 'next/link';
+import ProfileForm from '@/components/student/ProfileForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -105,6 +106,8 @@ export default async function StudentProfilePage() {
               </div>
             </div>
           </div>
+
+          <ProfileForm initialFirstName={user.firstName} initialLastName={user.lastName} />
         </div>
 
         {/* Academic Performance Card */}
