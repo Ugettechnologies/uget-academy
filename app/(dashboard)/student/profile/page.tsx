@@ -1,7 +1,7 @@
 import React from 'react';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { User, Mail, Calendar, Shield, Award, Clock, BookOpen, CheckCircle } from 'lucide-react';
+import { User, Mail, Calendar, Shield, Award, Clock, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import ProfileForm from '@/components/student/ProfileForm';
 
@@ -49,50 +49,43 @@ export default async function StudentProfilePage() {
   const attendancePercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 100;
 
   return (
-    <div className="space-y-8 animate-fade-in text-white">
+    <div className="space-y-6 animate-fade-in text-slate-800">
       <div>
-        <h2 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
-          <User className="w-8 h-8 text-brand-accent" />
-          My Profile
-        </h2>
-        <p className="mt-1.5 text-sm text-slate-400 font-normal leading-relaxed">
-          Manage your account profile details, review academic metrics, and track your attendance.
-        </p>
+        <h1 className="text-2xl font-black text-slate-800 tracking-tight">My Profile</h1>
+        <p className="text-slate-500 text-xs mt-1">Manage your security credentials, check syllabus progression, and overview statistics.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Profile Card Summary */}
+        {/* Profile Card Summary & Form */}
         <div className="lg:col-span-1 space-y-6">
-          <div className="bg-slate-900/40 backdrop-blur-md border border-slate-850 rounded-3xl p-6 sm:p-8 shadow-xl text-center relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-brand-primary/10 rounded-full filter blur-3xl -z-10" />
-            
-            {/* Dummy Avatar */}
-            <div className="w-24 h-24 bg-gradient-to-tr from-brand-primary to-brand-accent rounded-full mx-auto flex items-center justify-center text-white text-3xl font-black shadow-lg relative border-4 border-slate-900">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-[0_4px_25px_rgba(0,0,0,0.02)] border border-slate-50 text-center relative overflow-hidden">
+            {/* Avatar block */}
+            <div className="w-20 h-20 bg-gradient-to-tr from-[#1E60D5] to-[#60A5FA] rounded-full mx-auto flex items-center justify-center text-white text-2xl font-black shadow-md relative">
               {user.firstName[0]}
               {user.lastName[0]}
-              <span className="absolute bottom-1 right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-[10px] text-white border-2 border-slate-900">
+              <span className="absolute bottom-0.5 right-0.5 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-[9px] text-white border-2 border-white">
                 ✓
               </span>
             </div>
 
-            <div className="mt-4 space-y-1.5">
-              <h3 className="text-xl font-bold text-white flex items-center justify-center gap-1.5">
+            <div className="mt-4 space-y-1">
+              <h3 className="text-base font-black text-slate-850">
                 {user.firstName} {user.lastName}
               </h3>
-              <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide bg-brand-primary/15 text-brand-accent border border-brand-primary/20 uppercase">
+              <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[9px] font-extrabold tracking-wide bg-[#E0EEFF] text-[#1E60D5] uppercase">
                 Student Member
               </span>
             </div>
 
-            <div className="border-t border-slate-850 mt-6 pt-6 space-y-3.5 text-left text-xs text-slate-300">
+            <div className="border-t border-slate-50 mt-6 pt-6 space-y-3.5 text-left text-xs text-slate-550">
               <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-slate-500" />
-                <span>{user.email}</span>
+                <Mail className="w-4 h-4 text-slate-400" />
+                <span className="font-semibold">{user.email}</span>
               </div>
               <div className="flex items-center gap-2.5">
-                <Calendar className="w-4 h-4 text-slate-500" />
-                <span>
-                  Member since:{' '}
+                <Calendar className="w-4 h-4 text-slate-400" />
+                <span className="font-semibold">
+                  Joined:{' '}
                   {new Date(user.createdAt).toLocaleDateString(undefined, {
                     year: 'numeric',
                     month: 'long',
@@ -101,8 +94,8 @@ export default async function StudentProfilePage() {
                 </span>
               </div>
               <div className="flex items-center gap-2.5">
-                <Shield className="w-4 h-4 text-slate-500" />
-                <span>Status: Verified Account</span>
+                <Shield className="w-4 h-4 text-slate-400" />
+                <span className="font-semibold text-emerald-600">Status: Account Active</span>
               </div>
             </div>
           </div>
@@ -112,49 +105,50 @@ export default async function StudentProfilePage() {
 
         {/* Academic Performance Card */}
         <div className="lg:col-span-2 space-y-6">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            <Award className="w-5 h-5 text-brand-accent" />
-            Academic Transcript & Scorecard
-          </h3>
-
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {/* Courses Card */}
-            <div className="bg-slate-900/40 border border-slate-850 rounded-3xl p-6 shadow-md relative overflow-hidden">
+            <div className="bg-white border border-slate-50 rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden flex items-center justify-between">
               <div className="space-y-1">
-                <span className="text-xs text-slate-400 font-semibold block">Active Courses</span>
-                <span className="text-4xl font-extrabold block text-white">{totalCourses}</span>
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Active Courses</span>
+                <span className="text-3xl font-black block text-slate-800">{totalCourses}</span>
               </div>
-              <BookOpen className="absolute right-4 bottom-4 w-12 h-12 text-brand-primary/10" />
+              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
+                <BookOpen className="w-6 h-6" />
+              </div>
             </div>
 
             {/* Watch duration Card */}
-            <div className="bg-slate-900/40 border border-slate-850 rounded-3xl p-6 shadow-md relative overflow-hidden">
+            <div className="bg-white border border-slate-50 rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden flex items-center justify-between">
               <div className="space-y-1">
-                <span className="text-xs text-slate-400 font-semibold block">Time in Class</span>
-                <span className="text-4xl font-extrabold block text-white">{totalWatchHours} hrs</span>
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Time in Class</span>
+                <span className="text-3xl font-black block text-slate-800">{totalWatchHours} hrs</span>
               </div>
-              <Clock className="absolute right-4 bottom-4 w-12 h-12 text-brand-primary/10" />
+              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
+                <Clock className="w-6 h-6" />
+              </div>
             </div>
 
             {/* Attendance percentage Card */}
-            <div className="bg-slate-900/40 border border-slate-850 rounded-3xl p-6 shadow-md relative overflow-hidden">
+            <div className="bg-white border border-slate-50 rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden flex items-center justify-between">
               <div className="space-y-1">
-                <span className="text-xs text-slate-400 font-semibold block">Attendance Score</span>
-                <span className="text-4xl font-extrabold block text-white">{attendancePercent}%</span>
+                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Attendance Score</span>
+                <span className="text-3xl font-black block text-slate-800">{attendancePercent}%</span>
               </div>
-              <Award className="absolute right-4 bottom-4 w-12 h-12 text-brand-primary/10" />
+              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
+                <Award className="w-6 h-6" />
+              </div>
             </div>
           </div>
 
-          <div className="bg-slate-900/40 border border-slate-850 rounded-3xl p-6 sm:p-8 shadow-xl space-y-6">
-            <h4 className="text-lg font-bold text-white border-b border-slate-850 pb-4">
-              Registered Class Syllabus Summary
+          <div className="bg-white border border-slate-50 rounded-3xl p-6 sm:p-8 shadow-[0_4px_25px_rgba(0,0,0,0.02)] space-y-6">
+            <h4 className="text-sm font-black text-slate-800 border-b border-slate-50 pb-4">
+              Classroom & Syllabus Progression
             </h4>
 
             {user.enrollments.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-450">
+              <div className="py-8 text-center text-xs text-slate-400">
                 You have not registered for any classes yet.{' '}
-                <Link href="/student/courses" className="text-brand-accent hover:underline">
+                <Link href="/student/courses" className="text-[#1E60D5] hover:underline font-bold">
                   Visit catalog
                 </Link>
               </div>
@@ -171,25 +165,25 @@ export default async function StudentProfilePage() {
                   return (
                     <div
                       key={enr.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-slate-850/80 bg-slate-950/20 rounded-2xl"
+                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-slate-100 bg-slate-50/50 rounded-2xl"
                     >
                       <div className="space-y-1">
-                        <span className="text-sm font-bold text-slate-200">{enr.course.title}</span>
-                        <div className="text-[11px] text-slate-400 flex items-center gap-2">
-                          <span>Syllabus completion rate:</span>
-                          <span className="font-semibold text-brand-accent">{watchPercent}%</span>
+                        <span className="text-sm font-bold text-slate-700">{enr.course.title}</span>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                          <span>Syllabus Progress:</span>
+                          <span className="font-extrabold text-[#1E60D5]">{watchPercent}%</span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-4">
-                        <span className="text-xs text-slate-400 font-semibold">
+                        <span className="text-xs text-slate-400 font-bold">
                           {watchedCount} / {courseLessonsCount} modules
                         </span>
                         <Link
                           href={`/student/courses/${enr.course.id}`}
-                          className="px-3.5 py-1.5 rounded-lg bg-brand-primary/10 hover:bg-brand-primary/25 border border-brand-primary/20 text-brand-accent text-xs font-semibold transition"
+                          className="px-4 py-2 rounded-xl bg-[#E0EEFF] text-[#1E60D5] text-xs font-bold transition hover:bg-[#1E60D5] hover:text-white"
                         >
-                          Enter Room
+                          Enter Classroom
                         </Link>
                       </div>
                     </div>

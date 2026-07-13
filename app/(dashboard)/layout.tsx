@@ -46,6 +46,10 @@ export default async function DashboardLayout({
     ],
   };
 
+  if (role === 'STUDENT') {
+    return <>{children}</>;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
       {/* Top Navbar */}
