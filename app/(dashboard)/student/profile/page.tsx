@@ -1,8 +1,9 @@
 import React from 'react';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { User, Mail, Calendar, Shield, Award, Clock, BookOpen } from 'lucide-react';
-import Link from 'next/link';
+import Image from 'next/image';
+import { redirect } from 'next/navigation';
+import { Award } from 'lucide-react';
 import ProfileForm from '@/components/student/ProfileForm';
 
 export const dynamic = 'force-dynamic';
@@ -14,184 +15,111 @@ export default async function StudentProfilePage() {
   // Query database for user information
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    include: {
-      enrollments: {
-        include: {
-          course: {
-            include: {
-              lessons: true,
-            },
-          },
-        },
-      },
-      attendanceLogs: true,
-    },
   });
 
   if (!user) {
-    return (
-      <div className="py-20 text-center text-red-500 font-semibold">
-        Profile data could not be retrieved. Please sign in again.
-      </div>
-    );
+    redirect('/login');
   }
 
-  // Calculate statistics
-  const totalCourses = user.enrollments.length;
-  let totalLessons = 0;
-  user.enrollments.forEach(e => {
-    totalLessons += e.course.lessons.length;
-  });
-
-  const completedLessons = user.attendanceLogs.filter(log => log.durationSeconds >= 60).length;
-  const totalWatchSeconds = user.attendanceLogs.reduce((acc, log) => acc + log.durationSeconds, 0);
-  const totalWatchHours = (totalWatchSeconds / 3600).toFixed(1);
-  const attendancePercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 100;
+  const fullNameUpper = `${user.firstName} ${user.lastName}`.toUpperCase();
+  const emailLower = user.email.toLowerCase();
 
   return (
     <div className="space-y-6 animate-fade-in text-slate-800">
+      {/* Title */}
       <div>
-        <h1 className="text-2xl font-black text-slate-800 tracking-tight">My Profile</h1>
-        <p className="text-slate-500 text-xs mt-1">Manage your security credentials, check syllabus progression, and overview statistics.</p>
+        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Profile Settings</h1>
+        <p className="text-slate-500 text-xs mt-1">Manage your account information and preferences</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Profile Card Summary & Form */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-[0_4px_25px_rgba(0,0,0,0.02)] border border-slate-50 text-center relative overflow-hidden">
-            {/* Avatar block */}
-            <div className="w-20 h-20 bg-gradient-to-tr from-[#1E60D5] to-[#60A5FA] rounded-full mx-auto flex items-center justify-center text-white text-2xl font-black shadow-md relative">
-              {user.firstName[0]}
-              {user.lastName[0]}
-              <span className="absolute bottom-0.5 right-0.5 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-[9px] text-white border-2 border-white">
-                ✓
-              </span>
-            </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* Left Card: Headshot & Metadata */}
+        <div className="lg:col-span-5 bg-white rounded-3xl p-8 shadow-[0_4px_25px_rgba(0,0,0,0.02)] border border-slate-50 flex flex-col items-center text-center space-y-6">
+          
+          {/* Professional Avatar */}
+          <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-slate-100 shadow-sm bg-slate-100">
+            <Image
+              src="/student_avatar.png"
+              alt="Student Avatar"
+              fill
+              className="object-cover"
+              priority
+            />
+          </div>
 
-            <div className="mt-4 space-y-1">
-              <h3 className="text-base font-black text-slate-850">
-                {user.firstName} {user.lastName}
-              </h3>
-              <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-[9px] font-extrabold tracking-wide bg-[#E0EEFF] text-[#1E60D5] uppercase">
-                Student Member
+          {/* User Details */}
+          <div className="space-y-2">
+            <h2 className="text-base font-black text-slate-800 tracking-tight leading-none">
+              {fullNameUpper}
+            </h2>
+            <p className="text-xs text-slate-400 font-semibold">{emailLower}</p>
+            <div>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-emerald-50 text-emerald-600 border border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>Student</span>
               </span>
-            </div>
-
-            <div className="border-t border-slate-50 mt-6 pt-6 space-y-3.5 text-left text-xs text-slate-550">
-              <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-slate-400" />
-                <span className="font-semibold">{user.email}</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                <span className="font-semibold">
-                  Joined:{' '}
-                  {new Date(user.createdAt).toLocaleDateString(undefined, {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })}
-                </span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Shield className="w-4 h-4 text-slate-400" />
-                <span className="font-semibold text-emerald-600">Status: Account Active</span>
-              </div>
             </div>
           </div>
 
-          <ProfileForm initialFirstName={user.firstName} initialLastName={user.lastName} />
+          <div className="w-full border-t border-slate-100 pt-6 space-y-4 text-xs text-slate-700 font-semibold">
+            {/* Cohort */}
+            <div className="flex justify-between items-center">
+              <span className="text-slate-450 font-bold uppercase tracking-wider text-[10px]">Cohort</span>
+              <span className="text-slate-800 font-bold">1</span>
+            </div>
+
+            {/* Track */}
+            <div className="flex justify-between items-center">
+              <span className="text-slate-450 font-bold uppercase tracking-wider text-[10px]">Track</span>
+              <span className="text-slate-800 font-bold">UI/UX Design</span>
+            </div>
+
+            {/* Joined */}
+            <div className="flex justify-between items-center">
+              <span className="text-slate-450 font-bold uppercase tracking-wider text-[10px]">Joined</span>
+              <span className="text-slate-800 font-bold">
+                {new Date(user.createdAt).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Academic Performance Card */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {/* Courses Card */}
-            <div className="bg-white border border-slate-50 rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden flex items-center justify-between">
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Active Courses</span>
-                <span className="text-3xl font-black block text-slate-800">{totalCourses}</span>
-              </div>
-              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
-                <BookOpen className="w-6 h-6" />
-              </div>
+        {/* Right Card: Account Details & Editing form */}
+        <div className="lg:col-span-7 space-y-6">
+          <div className="bg-white rounded-3xl p-8 shadow-[0_4px_25px_rgba(0,0,0,0.02)] border border-slate-50 space-y-6">
+            <div className="flex justify-between items-center border-b border-slate-50 pb-4">
+              <h2 className="text-base font-black text-slate-800 tracking-tight">Account Information</h2>
+              <button className="text-xs font-bold text-[#1E60D5] hover:underline">
+                Edit profile
+              </button>
             </div>
 
-            {/* Watch duration Card */}
-            <div className="bg-white border border-slate-50 rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden flex items-center justify-between">
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Time in Class</span>
-                <span className="text-3xl font-black block text-slate-800">{totalWatchHours} hrs</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-slate-750">
+              {/* Full Name Display */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Full Name</label>
+                <div className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-xs font-bold text-slate-700 uppercase">
+                  {fullNameUpper}
+                </div>
               </div>
-              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
-                <Clock className="w-6 h-6" />
-              </div>
-            </div>
 
-            {/* Attendance percentage Card */}
-            <div className="bg-white border border-slate-50 rounded-3xl p-6 shadow-[0_4px_20px_rgba(0,0,0,0.02)] relative overflow-hidden flex items-center justify-between">
-              <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Attendance Score</span>
-                <span className="text-3xl font-black block text-slate-800">{attendancePercent}%</span>
-              </div>
-              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
-                <Award className="w-6 h-6" />
+              {/* Email Address Display */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Email Address</label>
+                <div className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-xs font-semibold text-slate-750">
+                  {emailLower}
+                </div>
+                <span className="text-[9px] text-slate-450 font-bold block">Email can not be changed</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-slate-50 rounded-3xl p-6 sm:p-8 shadow-[0_4px_25px_rgba(0,0,0,0.02)] space-y-6">
-            <h4 className="text-sm font-black text-slate-800 border-b border-slate-50 pb-4">
-              Classroom & Syllabus Progression
-            </h4>
-
-            {user.enrollments.length === 0 ? (
-              <div className="py-8 text-center text-xs text-slate-400">
-                You have not registered for any classes yet.{' '}
-                <Link href="/student/courses" className="text-[#1E60D5] hover:underline font-bold">
-                  Visit catalog
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {user.enrollments.map((enr) => {
-                  let courseLessonsCount = enr.course.lessons.length;
-                  let watchedCount = enr.course.lessons.filter((l: any) => {
-                    const duration = user.attendanceLogs.find(log => log.lessonId === l.id)?.durationSeconds || 0;
-                    return duration >= 60;
-                  }).length;
-                  let watchPercent = courseLessonsCount > 0 ? Math.round((watchedCount / courseLessonsCount) * 100) : 100;
-
-                  return (
-                    <div
-                      key={enr.id}
-                      className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-slate-100 bg-slate-50/50 rounded-2xl"
-                    >
-                      <div className="space-y-1">
-                        <span className="text-sm font-bold text-slate-700">{enr.course.title}</span>
-                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-2">
-                          <span>Syllabus Progress:</span>
-                          <span className="font-extrabold text-[#1E60D5]">{watchPercent}%</span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <span className="text-xs text-slate-400 font-bold">
-                          {watchedCount} / {courseLessonsCount} modules
-                        </span>
-                        <Link
-                          href={`/student/courses/${enr.course.id}`}
-                          className="px-4 py-2 rounded-xl bg-[#E0EEFF] text-[#1E60D5] text-xs font-bold transition hover:bg-[#1E60D5] hover:text-white"
-                        >
-                          Enter Classroom
-                        </Link>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+          {/* Settings form below it */}
+          <ProfileForm initialFirstName={user.firstName} initialLastName={user.lastName} />
         </div>
       </div>
     </div>

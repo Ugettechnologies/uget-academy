@@ -111,8 +111,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
                 }`}
               >
-                <ListTodo className="w-3.5 h-3.5" />
-                <span>Assignments List</span>
+                <span>• View Assignments</span>
               </Link>
               <Link
                 href="/student/assignments/submit"
@@ -122,8 +121,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
                     : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
                 }`}
               >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>Submit Assignment</span>
+                <span>• Submit Assignments</span>
               </Link>
             </div>
           )}
