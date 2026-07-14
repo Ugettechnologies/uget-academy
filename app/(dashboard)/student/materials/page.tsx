@@ -1,211 +1,212 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FolderDown, 
   FileText, 
   Download, 
-  Calendar,
-  CheckCircle,
+  AlertCircle,
   FileSpreadsheet,
-  ChevronDown
+  ChevronDown,
+  Loader2,
+  BookOpen
 } from 'lucide-react';
 
 interface Material {
   id: string;
   name: string;
+  fileName: string;
+  url: string;
+  lessonTitle: string;
+  courseTitle: string;
   date: string;
-  uploadedBy: string;
   uploadTime: string;
+  uploadedBy: string;
   size: string;
   type: string;
-  fileName: string;
-  previewText: string;
-  highlightedText?: string;
 }
 
-const mockLibraryMaterials: Material[] = [
-  {
-    id: '1',
-    name: 'Week 10: High-Fidelity Figma UI Redesign',
-    date: '15/06/2026',
-    uploadedBy: 'Chet Trutor',
-    uploadTime: '15/06/2026 - 22:05',
-    size: '323kb',
-    type: 'PDF',
-    fileName: 'Week_10_High_Fidelity.pdf',
-    previewText: 'HOW INNOVATION WORKS\n\nInvent a way of automatically slicing bread to make uniform sandwiches. It is lately obvious that this would probably happen in the first half of the twentieth century when electrical machines were all the rage for the first time. But why 1928? And why in the small town of Chillicothe, in the middle of Missouri? Lots of people tried to make bread-slicing machines, but they either worked poorly or they led to stale bread because it was not well packaged. The person who made it work was Otto Frederick Rohwedder, who was born in Iowa, was educated as an optician in Chicago and set up shop as a jeweler in St Joseph, Missouri, before moving back to Iowa determined - for some reason - to invent a bread slicer. He lost his first prototype in a fire in 1917 and had to start all over again. Crucially, he realized that he must invent automatic packaging of the bread at the same time lest the slices go stale.',
-    highlightedText: 'Innovation happens when people are free to think, experiment and speculate. It happens when people are allowed to trade with each other. It happens when people are relatively prosperous, but desperate. It is somewhat contagious: it needs investment; it generally happens in cities. And so on. But do we really understand it? What is the best way to encourage innovation? To let singers, direct research, subsidize science, write rules and standards, or to back'
-  },
-  {
-    id: '2',
-    name: 'Week 9: Next.js Pages & App Router Routing',
-    date: '08/06/2026',
-    uploadedBy: 'Chet Trutor',
-    uploadTime: '08/06/2026 - 18:30',
-    size: '412kb',
-    type: 'PDF',
-    fileName: 'Nextjs_Routing_Architecture.pdf',
-    previewText: 'NEXT.JS APP ROUTER ARCHITECTURE\n\nNext.js App Router introduces a new routing model built on React Server Components (RSC). Routes are declared via folder structure hierarchy where page.tsx acts as the leaf element. Layouts can be nested dynamically allowing persistent state and avoiding unneeded re-rendering cycles. Turbopack compilation streamlines local execution.',
-    highlightedText: 'React Server Components execute entirely on the server, minimizing bundle payload sizes and improving overall SEO response metrics. Layout structures nest recursively within segments.'
-  },
-  {
-    id: '3',
-    name: 'Week 8: State Management & Hooks Guide',
-    date: '01/06/2026',
-    uploadedBy: 'Chet Trutor',
-    uploadTime: '01/06/2026 - 14:15',
-    size: '280kb',
-    type: 'PDF',
-    fileName: 'React_State_Guides.pdf',
-    previewText: 'STATE PROPAGATION AND CONTEXT\n\nManaging complex layouts state context in React requires structured prop delegation rules. Context API bypasses props drilling, allowing deep nested components to consume state contexts directly. Reducer patterns ensure predictable mutations.',
-    highlightedText: 'Use Context selectively to avoid unnecessary top level rendering triggers. Keep local component states isolated wherever possible.'
-  },
-  {
-    id: '4',
-    name: 'Week 7: React Components Composition',
-    date: '25/05/2026',
-    uploadedBy: 'Chet Trutor',
-    uploadTime: '25/05/2026 - 10:45',
-    size: '345kb',
-    type: 'PDF',
-    fileName: 'React_Composition_Rules.pdf',
-    previewText: 'COMPOSITIONAL REACT ARCHITECTURES\n\nBuilding decoupled features components involves composition design keys. Nesting components using children props creates scalable architectures and supports clean interface variations without prop expansion.',
-    highlightedText: 'Prefer composition over inheritance. Isolate styles layout rules in container layout wrappers rather than base components.'
-  }
-];
-
 export default function StudentMaterialsLibraryPage() {
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedIdx, setSelectedIdx] = useState(0);
-  const activeMaterial = mockLibraryMaterials[selectedIdx] || mockLibraryMaterials[0];
+
+  useEffect(() => {
+    async function fetchMaterials() {
+      try {
+        const res = await fetch('/api/student/materials');
+        if (res.ok) {
+          const data = await res.json();
+          setMaterials(data);
+        }
+      } catch (err) {
+        console.error('Failed to load materials:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchMaterials();
+  }, []);
+
+  const activeMaterial = materials[selectedIdx];
 
   return (
-    <div className="space-y-6 animate-fade-in text-slate-800">
+    <div className="space-y-6 animate-fade-in text-text-primary">
       {/* Title */}
       <div>
-        <h1 className="text-2xl font-black text-slate-800 tracking-tight">Materials Library</h1>
-        <p className="text-slate-500 text-xs mt-1">Cohort 1. Web Development</p>
+        <h1 className="text-2xl font-black text-text-primary tracking-tight">Materials Library</h1>
+        <p className="text-text-secondary text-xs mt-1">Access lecture notes, guides, and download resources uploaded by your instructor.</p>
       </div>
 
-      {/* Split layout wrapper */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Side: Table Checklist of PDF documents */}
-        <div className="lg:col-span-7 bg-white rounded-3xl shadow-[0_4px_25px_rgba(0,0,0,0.02)] border border-slate-50 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm select-none">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50 text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                  <th className="px-6 py-4 w-12 text-center">
-                    <input type="checkbox" className="rounded border-slate-300 text-[#1E60D5] focus:ring-[#1E60D5]" readOnly checked />
-                  </th>
-                  <th className="px-4 py-4">Name</th>
-                  <th className="px-6 py-4 text-right flex items-center justify-end gap-1">
-                    <span>Date</span>
-                    <ChevronDown className="w-3.5 h-3.5" />
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
-                {mockLibraryMaterials.map((material, idx) => {
-                  const isSelected = idx === selectedIdx;
-                  return (
-                    <tr 
-                      key={material.id} 
-                      onClick={() => setSelectedIdx(idx)}
-                      className={`cursor-pointer transition duration-150 ${
-                        isSelected 
-                          ? 'bg-[#E8F1FC] hover:bg-[#E8F1FC]' 
-                          : 'hover:bg-slate-50/50'
-                      }`}
-                    >
-                      <td className="px-6 py-4 text-center">
-                        <input 
-                          type="checkbox" 
-                          checked={isSelected}
-                          onChange={() => setSelectedIdx(idx)}
-                          className="rounded border-slate-350 text-[#1E60D5] focus:ring-[#1E60D5]" 
-                        />
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <span className={`text-base flex-shrink-0 ${isSelected ? 'text-[#EF4444]' : 'text-slate-400'}`}>
-                            📄
-                          </span>
-                          <span className={`font-semibold text-xs leading-normal ${isSelected ? 'text-[#1E60D5]' : 'text-slate-705'}`}>
-                            {material.name}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right text-xs text-slate-400 font-semibold">{material.date}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+      {loading ? (
+        <div className="flex flex-col items-center justify-center p-12 space-y-3 bg-surface-card border border-border-divider rounded-3xl h-[400px]">
+          <Loader2 className="w-8 h-8 text-accent-purple animate-spin" />
+          <p className="text-xs text-text-secondary font-bold uppercase tracking-wider">Retrieving course materials...</p>
+        </div>
+      ) : materials.length === 0 ? (
+        <div className="flex flex-col items-center justify-center text-center p-8 bg-surface-card border border-border-divider rounded-3xl h-[400px] space-y-4">
+          <div className="w-16 h-16 bg-royal-purple/10 border border-royal-purple/20 rounded-full flex items-center justify-center text-accent-purple shadow-inner">
+            <BookOpen className="w-8 h-8" />
+          </div>
+          <div className="space-y-1 max-w-md">
+            <h4 className="text-base font-black text-text-primary">No materials uploaded yet</h4>
+            <p className="text-text-secondary text-xs leading-relaxed">
+              Your instructor has not uploaded any additional files, guides, or course materials for your active classes yet. They will appear here once sent.
+            </p>
           </div>
         </div>
-
-        {/* Right Side: Split PDF viewer pane */}
-        <div className="lg:col-span-5 space-y-6">
-          {/* Header Preview name */}
-          <div className="bg-white rounded-3xl border border-slate-50 shadow-[0_4px_25px_rgba(0,0,0,0.02)] overflow-hidden">
-            <div className="px-6 py-4 bg-slate-50/55 border-b border-slate-50 flex items-center justify-between">
-              <span className="text-xs font-black text-slate-800 truncate pr-4">{activeMaterial.name}</span>
-              <button 
-                onClick={() => alert(`Downloading ${activeMaterial.fileName}...`)}
-                className="text-[#1E60D5] hover:text-[#1E60D5]/90 transition"
-                title="Download"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Simulated PDF Preview Pane */}
-            <div className="p-6 bg-slate-100 flex items-center justify-center border-b border-slate-50">
-              <div className="bg-white shadow-md border border-slate-200 rounded p-6 h-[280px] w-full overflow-y-auto font-serif text-[10px] leading-relaxed text-slate-850 select-text scrollbar-thin">
-                <p className="whitespace-pre-line mb-3">{activeMaterial.previewText}</p>
-                {activeMaterial.highlightedText && (
-                  <p className="bg-yellow-200/90 text-slate-850 p-2.5 rounded-lg border-l-4 border-yellow-500 font-medium">
-                    {activeMaterial.highlightedText}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Related data section */}
-            <div className="p-6 space-y-4">
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-50 pb-2">Related data</h4>
-              
-              <div className="space-y-2.5 text-xs text-slate-700">
-                <div className="flex justify-between items-center border-b border-slate-50/50 pb-1.5">
-                  <span className="text-slate-400 font-semibold">Name</span>
-                  <span className="font-bold text-slate-700 truncate max-w-[200px]">{activeMaterial.fileName}</span>
-                </div>
-
-                <div className="flex justify-between items-center border-b border-slate-50/50 pb-1.5">
-                  <span className="text-slate-400 font-semibold">Uploaded by</span>
-                  <span className="font-bold text-slate-700">{activeMaterial.uploadedBy}</span>
-                </div>
-
-                <div className="flex justify-between items-center border-b border-slate-50/50 pb-1.5">
-                  <span className="text-slate-400 font-semibold">Upload date</span>
-                  <span className="font-bold text-slate-700 font-mono">{activeMaterial.uploadTime}</span>
-                </div>
-
-                <div className="flex justify-between items-center border-b border-slate-50/50 pb-1.5">
-                  <span className="text-slate-400 font-semibold">Size</span>
-                  <span className="font-bold text-slate-700">{activeMaterial.size}</span>
-                </div>
-
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-400 font-semibold">Type</span>
-                  <span className="font-bold text-[#1E60D5] bg-[#E0EEFF] px-2 py-0.5 rounded text-[10px] tracking-wide">{activeMaterial.type}</span>
-                </div>
-              </div>
+      ) : (
+        /* Split layout wrapper */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Left Side: Table Checklist of documents */}
+          <div className="lg:col-span-7 bg-surface-card rounded-3xl border border-border-divider overflow-hidden shadow-lg">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm select-none">
+                <thead>
+                  <tr className="border-b border-border-divider bg-[#150E27]/40 text-[10px] text-text-secondary font-bold uppercase tracking-wider">
+                    <th className="px-6 py-4 w-12 text-center">
+                      <input type="checkbox" className="rounded border-border-divider text-royal-purple focus:ring-royal-purple" readOnly checked />
+                    </th>
+                    <th className="px-4 py-4">Document Title</th>
+                    <th className="px-6 py-4 text-right flex items-center justify-end gap-1">
+                      <span>Shared Date</span>
+                      <ChevronDown className="w-3.5 h-3.5" />
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-divider text-text-primary">
+                  {materials.map((material, idx) => {
+                    const isSelected = idx === selectedIdx;
+                    return (
+                      <tr 
+                        key={material.id} 
+                        onClick={() => setSelectedIdx(idx)}
+                        className={`cursor-pointer transition duration-150 ${
+                          isSelected 
+                            ? 'bg-royal-purple/20 text-accent-purple' 
+                            : 'hover:bg-royal-purple/10'
+                        }`}
+                      >
+                        <td className="px-6 py-4 text-center">
+                          <input 
+                            type="checkbox" 
+                            checked={isSelected}
+                            onChange={() => setSelectedIdx(idx)}
+                            className="rounded border-border-divider text-royal-purple focus:ring-royal-purple" 
+                          />
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <span className={`text-base flex-shrink-0 ${isSelected ? 'text-royal-gold' : 'text-text-secondary'}`}>
+                              📄
+                            </span>
+                            <div className="flex flex-col">
+                              <span className={`font-semibold text-xs leading-normal ${isSelected ? 'text-text-primary font-bold' : 'text-text-secondary'}`}>
+                                {material.name}
+                              </span>
+                              <span className="text-[9px] text-text-secondary font-semibold">
+                                {material.courseTitle} • {material.lessonTitle}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-right text-xs text-text-secondary font-semibold">{material.date}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
+
+          {/* Right Side: Split viewer pane */}
+          <div className="lg:col-span-5 space-y-6">
+            {activeMaterial && (
+              <div className="bg-surface-card rounded-3xl border border-border-divider overflow-hidden shadow-lg">
+                <div className="px-6 py-4 bg-[#150E27]/40 border-b border-border-divider flex items-center justify-between">
+                  <span className="text-xs font-black text-text-primary truncate pr-4">{activeMaterial.name}</span>
+                  <a 
+                    href={activeMaterial.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-accent-purple hover:text-accent-purple/80 transition p-2 hover:bg-royal-purple/10 rounded-xl"
+                    title="Download Resource"
+                  >
+                    <Download className="w-4 h-4" />
+                  </a>
+                </div>
+
+                {/* Simulated PDF Preview Pane */}
+                <div className="p-6 bg-deep-violet flex flex-col items-center justify-center border-b border-border-divider h-[200px]">
+                  <FileText className="w-12 h-12 text-royal-gold animate-bounce" />
+                  <p className="text-[10px] text-text-secondary font-black uppercase mt-3 tracking-widest">Document Available for download</p>
+                  <a 
+                    href={activeMaterial.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 bg-royal-purple hover:bg-royal-purple/90 text-white font-bold text-xs py-2 px-5 rounded-xl transition shadow-lg flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download {activeMaterial.type}
+                  </a>
+                </div>
+
+                {/* Related details section */}
+                <div className="p-6 space-y-4">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-text-secondary border-b border-border-divider pb-2">Document Metadata</h4>
+                  
+                  <div className="space-y-2.5 text-xs text-text-primary">
+                    <div className="flex justify-between items-center border-b border-border-divider/55 pb-1.5">
+                      <span className="text-text-secondary font-semibold">File Name</span>
+                      <span className="font-bold text-text-primary truncate max-w-[200px]">{activeMaterial.fileName}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center border-b border-border-divider/55 pb-1.5">
+                      <span className="text-text-secondary font-semibold">Uploaded by</span>
+                      <span className="font-bold text-text-primary">{activeMaterial.uploadedBy}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center border-b border-border-divider/55 pb-1.5">
+                      <span className="text-text-secondary font-semibold">Upload date</span>
+                      <span className="font-bold text-text-primary font-mono">{activeMaterial.uploadTime}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center border-b border-border-divider/55 pb-1.5">
+                      <span className="text-text-secondary font-semibold">Size</span>
+                      <span className="font-bold text-text-primary">{activeMaterial.size}</span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-text-secondary font-semibold">Type</span>
+                      <span className="font-bold text-accent-purple bg-royal-purple/20 px-2 py-0.5 rounded text-[10px] tracking-wide border border-royal-purple/10">{activeMaterial.type}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -32,6 +32,10 @@ model User {
   lockoutUntil    DateTime?
   createdAt       DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  phone         String?
+  bio           String?
+  githubUrl     String?
+  linkedinUrl   String?
 
   coursesAsInstructor Course[]  @relation("InstructorCourses")
   enrollments         Enrollment[]

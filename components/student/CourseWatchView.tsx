@@ -393,6 +393,18 @@ export default function CourseWatchView({ course, lessons, user }: CourseWatchVi
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
               />
+            ) : activeLesson?.content ? (
+              <div className="w-full h-full p-6 sm:p-8 overflow-y-auto bg-surface-card flex flex-col justify-start text-left select-text scrollbar-thin">
+                <div className="border-b border-border-divider pb-4 mb-4">
+                  <span className="text-[9px] bg-royal-gold/15 text-royal-gold px-2.5 py-0.5 rounded-full font-extrabold uppercase border border-royal-gold/25">
+                    Written Lesson Module
+                  </span>
+                  <h3 className="text-base sm:text-lg font-black mt-2 text-text-primary">{activeLesson.title}</h3>
+                </div>
+                <div className="prose prose-invert max-w-none text-xs sm:text-sm text-text-secondary leading-relaxed whitespace-pre-line">
+                  {activeLesson.content}
+                </div>
+              </div>
             ) : (
               <div className="text-center p-8 space-y-4">
                 <div className="w-16 h-16 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center mx-auto text-brand-accent animate-pulse">

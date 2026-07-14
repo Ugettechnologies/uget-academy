@@ -9,6 +9,10 @@ const updateProfileSchema = z.object({
   firstName: z.string().min(2, 'First name is too short'),
   lastName: z.string().min(2, 'Last name is too short'),
   password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
+  phone: z.string().optional().nullable(),
+  bio: z.string().max(250, 'Bio is too long').optional().nullable(),
+  githubUrl: z.string().optional().nullable(),
+  linkedinUrl: z.string().optional().nullable(),
 });
 
 export async function GET() {
@@ -25,6 +29,10 @@ export async function GET() {
         email: true,
         firstName: true,
         lastName: true,
+        phone: true,
+        bio: true,
+        githubUrl: true,
+        linkedinUrl: true,
       },
     });
 
@@ -54,10 +62,14 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: result.error.issues[0]?.message || 'Invalid input data.' }, { status: 400 });
     }
 
-    const { firstName, lastName, password } = result.data;
+    const { firstName, lastName, password, phone, bio, githubUrl, linkedinUrl } = result.data;
     const updateData: any = {
       firstName,
       lastName,
+      phone: phone || null,
+      bio: bio || null,
+      githubUrl: githubUrl || null,
+      linkedinUrl: linkedinUrl || null,
     };
 
     if (password && password.trim().length >= 8) {

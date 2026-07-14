@@ -27,6 +27,7 @@ interface StudentSidebarProps {
   user: {
     firstName: string;
     lastName: string;
+    email?: string;
   };
   onLinkClick?: () => void;
 }
@@ -34,9 +35,9 @@ interface StudentSidebarProps {
 export default function StudentSidebar({ user, onLinkClick }: StudentSidebarProps) {
   const pathname = usePathname();
 
-  // Accordion state tracking, open by default for layout alignment
-  const [assignmentsExpanded, setAssignmentsExpanded] = useState(true);
-  const [examsExpanded, setExamsExpanded] = useState(true);
+  // Accordion state tracking, closed by default unless currently on active sub-route
+  const [assignmentsExpanded, setAssignmentsExpanded] = useState(pathname.startsWith('/student/assignments'));
+  const [examsExpanded, setExamsExpanded] = useState(pathname.startsWith('/student/exams'));
 
   const isActive = (href: string) => {
     if (href === '/student') {
@@ -262,21 +263,25 @@ export default function StudentSidebar({ user, onLinkClick }: StudentSidebarProp
           }`}
         >
           <User className={`w-5 h-5 ${isActive('/student/profile') ? 'text-accent-purple' : 'text-text-secondary'}`} />
-          <span>Profile</span>
+          <span>Profile & Settings</span>
         </Link>
       </nav>
 
-      {/* Footer Logout Button */}
-      <div className="p-6 border-t border-border-divider">
-        <form action="/api/auth/logout" method="POST">
-          <button
-            type="submit"
-            className="flex items-center gap-3 px-4 py-2 text-sm font-bold text-status-absent hover:text-status-absent/80 transition-colors w-full text-left cursor-pointer"
-          >
-            <LogOut className="w-5 h-5" />
-            <span>Logout</span>
-          </button>
-        </form>
+      {/* Sidebar User Footer */}
+      <div className="p-4 border-t border-border-divider flex flex-col gap-1.5 bg-royal-purple/5">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-full bg-royal-purple/20 flex items-center justify-center text-accent-purple font-bold text-xs shrink-0">
+            {user.firstName ? user.firstName.charAt(0) : ''}{user.lastName ? user.lastName.charAt(0) : ''}
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-black text-text-primary truncate leading-none mb-1">
+              {user.firstName} {user.lastName}
+            </span>
+            <span className="text-[10px] text-text-secondary truncate font-medium">
+              {user.email || 'student@uget.com'}
+            </span>
+          </div>
+        </div>
       </div>
     </aside>
   );
