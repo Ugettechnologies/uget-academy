@@ -136,6 +136,51 @@
   --sidebar-accent-foreground: #A78BFA;
   --sidebar-border: #3B2C5E;
   --sidebar-ring: #6D28D9;
+
+  /* Override hardcoded Tailwind utilities inside dark containers */
+  .bg-white {
+    background-color: #241A3D !important; /* surface-card */
+  }
+  .bg-slate-50, .bg-slate-50\/50, .bg-slate-55\/50, .bg-slate-100, .bg-slate-100\/50 {
+    background-color: #150E27 !important; /* deep-violet */
+  }
+  .text-slate-900, .text-slate-850, .text-slate-800, .text-slate-750, .text-slate-700 {
+    color: #F5F3FF !important; /* text-primary */
+  }
+  .text-slate-650, .text-slate-600, .text-slate-550, .text-slate-500, .text-slate-450, .text-slate-400 {
+    color: #A99BC7 !important; /* text-secondary */
+  }
+  .border-slate-200, .border-slate-100, .border-slate-50, .border-slate-300 {
+    border-color: #3B2C5E !important; /* border-divider */
+  }
+  .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl, .shadow-\[0_4px_25px_rgba\(0\,0\,0\,0\.02\)\] {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25) !important;
+  }
+  
+  /* Status backgrounds */
+  .bg-emerald-50, .bg-emerald-500\/20 {
+    background-color: rgba(34, 197, 94, 0.15) !important;
+    color: #22C55E !important;
+  }
+  .bg-red-50, .bg-red-500\/20 {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+    color: #EF4444 !important;
+  }
+  .bg-amber-50, .bg-amber-500\/20 {
+    background-color: rgba(245, 197, 66, 0.15) !important;
+    color: #F5C542 !important;
+  }
+
+  /* Form inputs, selects, textareas */
+  input, select, textarea {
+    background-color: #150E27 !important;
+    border-color: #3B2C5E !important;
+    color: #F5F3FF !important;
+  }
+  input::placeholder, textarea::placeholder {
+    color: #A99BC7 !important;
+    opacity: 0.6;
+  }
 }
 
 @layer base {

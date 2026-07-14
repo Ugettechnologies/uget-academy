@@ -28,9 +28,10 @@ interface StudentSidebarProps {
     firstName: string;
     lastName: string;
   };
+  onLinkClick?: () => void;
 }
 
-export default function StudentSidebar({ user }: StudentSidebarProps) {
+export default function StudentSidebar({ user, onLinkClick }: StudentSidebarProps) {
   const pathname = usePathname();
 
   // Accordion state tracking, open by default for layout alignment
@@ -49,10 +50,10 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
   };
 
   return (
-    <aside className="w-64 bg-surface-card border-r border-border-divider flex flex-col h-screen fixed left-0 top-0 z-30">
+    <aside className="w-64 bg-surface-card border-r border-border-divider flex flex-col h-screen relative">
       {/* Brand Header */}
       <div className="p-6 border-b border-border-divider flex items-center justify-between">
-        <Link href="/student" className="flex items-center gap-3">
+        <Link href="/student" onClick={onLinkClick} className="flex items-center gap-3">
           <Image
             src="/logo-clean.png"
             alt="UGET Academy Logo"
@@ -77,6 +78,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
         {/* Dashboard Link */}
         <Link
           href="/student"
+          onClick={onLinkClick}
           className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
             isActive('/student')
               ? 'bg-royal-purple/20 text-accent-purple border-l-2 border-royal-purple'
@@ -90,6 +92,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
         {/* Attendance Link */}
         <Link
           href="/student/attendance"
+          onClick={onLinkClick}
           className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
             isActive('/student/attendance')
               ? 'bg-royal-purple/20 text-accent-purple border-l-2 border-royal-purple'
@@ -121,6 +124,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
             <div className="pl-9 pr-2 py-1 space-y-1 border-l-2 border-border-divider ml-6">
               <Link
                 href="/student/assignments"
+                onClick={onLinkClick}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
                   isActive('/student/assignments')
                     ? 'bg-royal-purple/20 text-accent-purple'
@@ -131,6 +135,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
               </Link>
               <Link
                 href="/student/assignments/submit"
+                onClick={onLinkClick}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
                   isActive('/student/assignments/submit')
                     ? 'bg-royal-purple/20 text-accent-purple'
@@ -164,6 +169,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
             <div className="pl-9 pr-2 py-1 space-y-1 border-l-2 border-border-divider ml-6">
               <Link
                 href="/student/exams/practicals"
+                onClick={onLinkClick}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
                   isActive('/student/exams/practicals')
                     ? 'bg-royal-purple/20 text-accent-purple'
@@ -175,6 +181,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
               </Link>
               <Link
                 href="/student/exams/quiz"
+                onClick={onLinkClick}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition ${
                   isActive('/student/exams/quiz')
                     ? 'bg-royal-purple/20 text-accent-purple'
@@ -191,6 +198,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
         {/* Forum Link */}
         <Link
           href="/student/forum"
+          onClick={onLinkClick}
           className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
             isActive('/student/forum')
               ? 'bg-royal-purple/20 text-accent-purple border-l-2 border-royal-purple'
@@ -204,6 +212,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
         {/* Grades Link */}
         <Link
           href="/student/grades"
+          onClick={onLinkClick}
           className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
             isActive('/student/grades')
               ? 'bg-royal-purple/20 text-accent-purple border-l-2 border-royal-purple'
@@ -217,6 +226,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
         {/* Materials Link */}
         <Link
           href="/student/materials"
+          onClick={onLinkClick}
           className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
             isActive('/student/materials')
               ? 'bg-royal-purple/20 text-accent-purple border-l-2 border-royal-purple'
@@ -230,6 +240,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
         {/* Support Link */}
         <Link
           href="/student/support"
+          onClick={onLinkClick}
           className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
             isActive('/student/support')
               ? 'bg-royal-purple/20 text-accent-purple border-l-2 border-royal-purple'
@@ -243,6 +254,7 @@ export default function StudentSidebar({ user }: StudentSidebarProps) {
         {/* Profile Link */}
         <Link
           href="/student/profile"
+          onClick={onLinkClick}
           className={`flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
             isActive('/student/profile')
               ? 'bg-royal-purple/20 text-accent-purple border-l-2 border-royal-purple'

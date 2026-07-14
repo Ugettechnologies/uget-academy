@@ -65,7 +65,14 @@ export default async function StudentCourseDetailPage({
             {course.title}
           </h2>
         </div>
-        <CourseWatchView course={course} lessons={course.lessons} />
+        <CourseWatchView 
+          course={course} 
+          lessons={course.lessons} 
+          user={{
+            firstName: (session.firstName as string) || 'Student',
+            lastName: (session.lastName as string) || '',
+          }}
+        />
       </div>
     );
   }

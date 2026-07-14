@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import MuxPlayer from '@mux/mux-player-react';
+import LiveVideoCall from './LiveVideoCall';
 import { 
   CheckCircle2, 
   PlayCircle, 
@@ -36,9 +37,14 @@ interface CourseWatchViewProps {
     description: string;
   };
   lessons: Lesson[];
+  user: {
+    firstName: string;
+    lastName: string;
+  };
 }
 
-export default function CourseWatchView({ course, lessons }: CourseWatchViewProps) {
+export default function CourseWatchView({ course, lessons, user }: CourseWatchViewProps) {
+  const [inLiveCall, setInLiveCall] = useState(false);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(
     lessons.length > 0 ? lessons[0] : null
   );
@@ -342,40 +348,68 @@ export default function CourseWatchView({ course, lessons }: CourseWatchViewProp
   const isCourseComplete = lessons.every((l) => (attendanceMap[l.id] || 0) >= 60);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-slate-800">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-fade-in text-text-primary">
       
       {/* Left Column: Video Player & Tabs */}
       <div className="lg:col-span-8 space-y-6">
         
-        {/* Video Player */}
-        <div className="bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 aspect-video flex items-center justify-center text-white relative group">
-          {activeLesson?.muxPlaybackId ? (
-            <MuxPlayer
-              playbackId={activeLesson.muxPlaybackId}
-              metadataVideoTitle={activeLesson.title}
-              metadataViewerUserId={course.id}
-              primaryColor="#2563EB"
-              className="w-full h-full object-contain"
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-              onEnded={() => setIsPlaying(false)}
-            />
-          ) : (
-            <div className="text-center p-8 space-y-4">
-              <div className="w-16 h-16 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center mx-auto text-brand-accent animate-pulse">
-                <AlertCircle className="w-8 h-8" />
-              </div>
-              <div className="space-y-1">
-                <h4 className="text-lg font-bold text-white">Video is being prepared</h4>
-                <p className="text-slate-400 text-xs max-w-xs mx-auto">
-                  {activeLesson
-                    ? 'Mux is still encoding the lesson file. Please reload the page in a moment.'
-                    : 'Select a lesson from the syllabus sidebar.'}
-                </p>
-              </div>
+        {/* Live Call Notice Banner */}
+        {!inLiveCall && (
+          <div className="bg-gradient-to-r from-royal-purple/35 to-accent-purple/20 border border-border-divider/50 rounded-3xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-lg">
+            <div className="space-y-1">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-status-absent text-white animate-pulse">
+                ● LIVE LECTURE AVAILABLE
+              </span>
+              <h4 className="text-sm font-bold text-text-primary">Interactive video session is currently in progress</h4>
+              <p className="text-[11px] text-text-secondary">Join to interact live with the instructor and get real-time voice-to-text transcriptions.</p>
             </div>
-          )}
-        </div>
+            <button
+              onClick={() => setInLiveCall(true)}
+              className="bg-royal-gold hover:bg-royal-gold/90 text-deep-violet font-bold text-xs py-3 px-5 rounded-2xl transition shadow-lg shrink-0 flex items-center gap-1.5 cursor-pointer"
+            >
+              <PlayCircle className="w-4.5 h-4.5" />
+              Join Live Video Call
+            </button>
+          </div>
+        )}
+
+        {/* Video Player or Live Video Call component */}
+        {inLiveCall ? (
+          <LiveVideoCall 
+            courseTitle={course.title}
+            onLeave={() => setInLiveCall(false)}
+            user={user}
+          />
+        ) : (
+          <div className="bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 aspect-video flex items-center justify-center text-white relative group">
+            {activeLesson?.muxPlaybackId ? (
+              <MuxPlayer
+                playbackId={activeLesson.muxPlaybackId}
+                metadataVideoTitle={activeLesson.title}
+                metadataViewerUserId={course.id}
+                primaryColor="#6D28D9"
+                className="w-full h-full object-contain"
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onEnded={() => setIsPlaying(false)}
+              />
+            ) : (
+              <div className="text-center p-8 space-y-4">
+                <div className="w-16 h-16 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center mx-auto text-brand-accent animate-pulse">
+                  <AlertCircle className="w-8 h-8" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-lg font-bold text-white">Video is being prepared</h4>
+                  <p className="text-slate-400 text-xs max-w-xs mx-auto">
+                    {activeLesson
+                      ? 'Mux is still encoding the lesson file. Please reload the page in a moment.'
+                      : 'Select a lesson from the syllabus sidebar.'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Video Sub-bar info */}
         <div className="flex flex-wrap items-center justify-between gap-4 py-2 border-b border-slate-100">
