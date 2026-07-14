@@ -43,7 +43,7 @@ export default async function StudentGradesDashboardPage() {
         include: {
           assignments: true,
           quizzes: true,
-          sessions: {
+          liveSessions: {
             include: {
               attendances: {
                 where: { userId }
@@ -81,7 +81,7 @@ export default async function StudentGradesDashboardPage() {
   let attendedLiveSessions = 0;
 
   enrollments.forEach((e) => {
-    e.course.sessions.forEach((s) => {
+    e.course.liveSessions.forEach((s) => {
       totalLiveSessions++;
       const att = s.attendances[0];
       const excuse = s.excuses[0];

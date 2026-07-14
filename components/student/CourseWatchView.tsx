@@ -411,9 +411,13 @@ export default function CourseWatchView({ course, lessons, user }: CourseWatchVi
                   <AlertCircle className="w-8 h-8" />
                 </div>
                 <div className="space-y-1">
-                  <h4 className="text-lg font-bold text-white">Video is being prepared</h4>
+                  <h4 className="text-lg font-bold text-white">
+                    {lessons.length === 0 ? 'No Lessons Available' : 'Video is being prepared'}
+                  </h4>
                   <p className="text-slate-400 text-xs max-w-xs mx-auto">
-                    {activeLesson
+                    {lessons.length === 0
+                      ? 'This course does not have any lessons uploaded yet.'
+                      : activeLesson
                       ? 'Mux is still encoding the lesson file. Please reload the page in a moment.'
                       : 'Select a lesson from the syllabus sidebar.'}
                   </p>
@@ -927,8 +931,13 @@ export default function CourseWatchView({ course, lessons, user }: CourseWatchVi
             </h4>
 
             <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1 scrollbar-thin">
-              {lessons.map((lesson) => {
-                const watchSeconds = attendanceMap[lesson.id] || 0;
+              {lessons.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 text-xs font-semibold">
+                  No modules uploaded yet.
+                </div>
+              ) : (
+                lessons.map((lesson) => {
+                  const watchSeconds = attendanceMap[lesson.id] || 0;
                 const isCompleted = watchSeconds >= 60;
                 const isActive = activeLesson?.id === lesson.id;
 
@@ -973,7 +982,8 @@ export default function CourseWatchView({ course, lessons, user }: CourseWatchVi
                     </div>
                   </button>
                 );
-              })}
+              })
+            )}
             </div>
           </div>
         </div>

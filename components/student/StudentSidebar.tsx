@@ -11,7 +11,6 @@ import {
   BarChart3, 
   FolderDown, 
   User, 
-  LogOut,
   ChevronDown,
   ChevronUp,
   PlusCircle,
