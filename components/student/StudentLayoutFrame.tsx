@@ -53,7 +53,7 @@ function StudentLayoutContent({ user, children }: StudentLayoutFrameProps) {
 
       {/* Sidebar navigation */}
       <div 
-        className={`fixed inset-y-0 left-0 z-50 transform lg:static transition-all duration-300 ease-in-out bg-surface-card ${
+        className={`fixed inset-y-0 left-0 z-50 transform lg:static lg:h-screen lg:sticky lg:top-0 transition-all duration-300 ease-in-out bg-surface-card ${
           isSidebarOpen 
             ? 'translate-x-0 w-64 border-r border-border-divider' 
             : '-translate-x-full lg:translate-x-0 lg:w-0 lg:overflow-hidden lg:border-r-0'

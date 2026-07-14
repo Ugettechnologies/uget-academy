@@ -50,7 +50,7 @@ export default function StudentSidebar({ user, onLinkClick }: StudentSidebarProp
   };
 
   return (
-    <aside className="w-64 bg-surface-card border-r border-border-divider flex flex-col h-screen relative">
+    <aside className="w-64 bg-surface-card border-r border-border-divider flex flex-col h-full relative">
       {/* Brand Header */}
       <div className="p-6 border-b border-border-divider flex items-center justify-between">
         <Link href="/student" onClick={onLinkClick} className="flex items-center gap-3">
