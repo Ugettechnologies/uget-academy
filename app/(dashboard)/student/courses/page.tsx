@@ -31,18 +31,18 @@ export default async function StudentCoursesCatalogPage() {
   const enrolledCourseIds = new Set(enrollments.map((e: any) => e.courseId));
 
   return (
-    <div className="space-y-8 animate-fade-in text-white">
+    <div className="space-y-8 animate-fade-in text-slate-800">
       <div>
-        <h2 className="text-3xl font-extrabold tracking-tight text-white">
+        <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">
           Course Catalog
         </h2>
-        <p className="mt-1.5 text-sm text-slate-400 font-normal leading-relaxed">
+        <p className="mt-1.5 text-sm text-slate-500 font-normal leading-relaxed">
           Explore world-class developer masterclasses designed to level up your engineering career.
         </p>
       </div>
 
       {courses.length === 0 ? (
-        <div className="py-16 text-center text-sm text-slate-400 border border-dashed border-slate-800 rounded-3xl bg-slate-900/20 backdrop-blur-md">
+        <div className="py-16 text-center text-sm text-slate-500 border border-slate-200 rounded-3xl bg-white shadow-sm">
           No courses are currently available in the catalog.
         </div>
       ) : (

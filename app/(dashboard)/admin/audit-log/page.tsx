@@ -35,9 +35,9 @@ export default async function AuditLogPage({ searchParams }: PageProps) {
       AND: [
         q ? {
           OR: [
-            { userEmail: { contains: q, mode: 'insensitive' } },
-            { targetId: { contains: q, mode: 'insensitive' } },
-            { userId: { contains: q, mode: 'insensitive' } },
+            { userEmail: { contains: q } },
+            { targetId: { contains: q } },
+            { userId: { contains: q } },
           ]
         } : {},
         action ? { action: action } : {},

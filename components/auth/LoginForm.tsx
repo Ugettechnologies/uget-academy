@@ -14,6 +14,7 @@ export default function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   // Load saved credentials if 'Remember me' was enabled
   useEffect(() => {
@@ -27,6 +28,31 @@ export default function LoginForm() {
       setPassword(savedPassword);
     }
   }, []);
+
+  const handleDemoLogin = async () => {
+    setError(null);
+    setDemoLoading(true);
+    try {
+      const response = await fetch('/api/auth/demo', {
+        method: 'POST',
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Demo login failed.');
+        setDemoLoading(false);
+        return;
+      }
+
+      // Success: redirect
+      router.push('/student');
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      setError('An error occurred during demo setup. Please try again.');
+      setDemoLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +111,7 @@ export default function LoginForm() {
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         {error && (
-          <div className="rounded-lg bg-red-955/20 border border-red-900/50 p-3.5 text-xs text-red-400">
+          <div className="rounded-lg bg-red-950/20 border border-red-900/50 p-3.5 text-xs text-red-400">
             {error}
           </div>
         )}
@@ -144,10 +170,28 @@ export default function LoginForm() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || demoLoading}
           className="w-full rounded-lg bg-gradient-to-r from-[#2563EB] to-[#60A5FA] py-3 text-xs font-bold text-white hover:from-[#2563EB]/90 hover:to-[#60A5FA]/90 focus:outline-none transition duration-150 disabled:opacity-50 font-sans shadow-lg shadow-[#2563EB]/25"
         >
           {loading ? 'Signing in...' : 'Sign In'}
+        </button>
+
+        <div className="relative my-4 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-white/10"></div>
+          </div>
+          <span className="relative bg-[#1e293b] px-3 text-[10px] uppercase font-bold text-gray-500 tracking-wider">
+            Demo Portal
+          </span>
+        </div>
+
+        <button
+          type="button"
+          disabled={loading || demoLoading}
+          onClick={handleDemoLogin}
+          className="w-full rounded-lg border border-brand-accent/30 bg-brand-primary/10 hover:bg-brand-primary/20 py-3 text-xs font-bold text-brand-accent transition duration-150 disabled:opacity-50 font-sans flex items-center justify-center gap-2 shadow-lg shadow-brand-primary/5"
+        >
+          {demoLoading ? 'Launching Sandbox...' : 'Demo Student Access'}
         </button>
       </form>
     </div>
