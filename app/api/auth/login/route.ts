@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const loginInput = body?.email || '';
 
-    // Rate Limiting by IP + loginInput
+    // Fast Rate Limiting check
     const rateLimitResult = await checkLoginRateLimit(ip, loginInput);
     if (!rateLimitResult.success) {
       return NextResponse.json(
@@ -40,27 +40,6 @@ export async function POST(request: Request) {
     const { email: inputIdentifier, password } = result.data;
     const cleanIdentifier = inputIdentifier.trim().toLowerCase();
 
-    // Auto-provision Super Admin account for ugettechnologies@gmail.com if missing
-    if (cleanIdentifier === ADMIN_GMAIL) {
-      const existingAdmin = await prisma.user.findUnique({
-        where: { email: ADMIN_GMAIL },
-      });
-
-      if (!existingAdmin) {
-        const passwordHash = await hashPassword(password);
-        await prisma.user.create({
-          data: {
-            email: ADMIN_GMAIL,
-            firstName: 'UGET',
-            lastName: 'Admin',
-            passwordHash,
-            role: 'ADMIN',
-            emailVerified: true,
-          },
-        });
-      }
-    }
-
     // Query DB by Email or Username
     let user;
     try {
@@ -75,6 +54,21 @@ export async function POST(request: Request) {
     } catch {
       user = await prisma.user.findUnique({
         where: { email: cleanIdentifier },
+      });
+    }
+
+    // Auto-provision Super Admin account for ugettechnologies@gmail.com if missing on first login
+    if (!user && cleanIdentifier === ADMIN_GMAIL) {
+      const passwordHash = await hashPassword(password);
+      user = await prisma.user.create({
+        data: {
+          email: ADMIN_GMAIL,
+          firstName: 'UGET',
+          lastName: 'Admin',
+          passwordHash,
+          role: 'ADMIN',
+          emailVerified: true,
+        },
       });
     }
 

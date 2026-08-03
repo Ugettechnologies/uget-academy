@@ -13,7 +13,7 @@ export default async function StaffLayout({
   const session = await getSession();
 
   if (!session) {
-    redirect('/login');
+    redirect('/staff/login');
   }
 
   const userId = session.userId as string;

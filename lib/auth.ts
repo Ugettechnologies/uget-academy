@@ -6,7 +6,7 @@ const secretKey = process.env.JWT_SECRET || 'super_secret_jwt_key_for_developmen
 const encodedKey = new TextEncoder().encode(secretKey);
 
 export async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(12);
+  const salt = await bcrypt.genSalt(10);
   return bcrypt.hash(password, salt);
 }
 

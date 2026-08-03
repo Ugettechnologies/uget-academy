@@ -13,7 +13,7 @@ export default async function AdminDashboardLayout({
 }) {
   const session = await getSession();
   if (!session) {
-    redirect('/login');
+    redirect('/admin/login');
   }
 
   const userId = session.userId as string;
