@@ -64,7 +64,7 @@ export default async function InstructorCourseDetailPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Side: Lesson Uploader */}
         <div className="lg:col-span-1 space-y-6">
-          <LessonUploader courseId={course.id} onLessonAdded={() => {}} />
+          <LessonUploader />
         </div>
 
         {/* Right Side: Lessons List */}
