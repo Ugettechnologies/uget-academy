@@ -21,7 +21,7 @@ export default function AdminCourseManager() {
       category: 'Cybersecurity Track',
       status: 'PUBLISHED',
       enrolledStudentsCount: 420,
-      assignedTutor: 'Dr. Ada Lovelace',
+      assignedTutor: 'Mr. Anthony',
       price: '₦150,000',
     },
     {
@@ -30,7 +30,7 @@ export default function AdminCourseManager() {
       category: 'Data Science Track',
       status: 'PUBLISHED',
       enrolledStudentsCount: 380,
-      assignedTutor: 'Prof. Alan Turing',
+      assignedTutor: 'Ms. Goodness',
       price: '₦140,000',
     },
     {
@@ -39,21 +39,30 @@ export default function AdminCourseManager() {
       category: 'Development Track',
       status: 'PUBLISHED',
       enrolledStudentsCount: 410,
-      assignedTutor: 'Grace Hopper',
+      assignedTutor: 'Mr. Mayorkun',
       price: '₦160,000',
     },
     {
       id: 'crs-4',
       title: 'UI/UX System Design & Wireframing',
       category: 'Design Track',
-      status: 'DRAFT',
-      enrolledStudentsCount: 0,
-      assignedTutor: 'Unassigned',
+      status: 'PUBLISHED',
+      enrolledStudentsCount: 330,
+      assignedTutor: 'Mr. Chief',
       price: '₦120,000',
+    },
+    {
+      id: 'crs-5',
+      title: 'AI & Automation Engineering',
+      category: 'AI & Automation Track',
+      status: 'PUBLISHED',
+      enrolledStudentsCount: 290,
+      assignedTutor: 'Mr. Light',
+      price: '₦180,000',
     },
   ]);
 
-  const [tutors] = useState(['Dr. Ada Lovelace', 'Prof. Alan Turing', 'Grace Hopper', 'Margaret Hamilton']);
+  const [tutors] = useState(['Mr. Anthony', 'Ms. Goodness', 'Mr. Mayorkun', 'Mr. Chief', 'Mr. Light']);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCourseToAssign, setActiveCourseToAssign] = useState<CourseItem | null>(null);
