@@ -1,15 +1,18 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Eye, EyeOff, Key, X, Check, Copy, AlertCircle, Loader2, ShieldAlert, Send, GraduationCap, UserCheck, ExternalLink, Info, Shield } from 'lucide-react';
 import Logo from '@/components/Logo';
 
-type LoginTab = 'STUDENT' | 'INSTRUCTOR';
+type LoginTab = 'STUDENT' | 'INSTRUCTOR' | 'ADMIN';
 type ForgotStep = 'IDENTIFY' | 'STUDENT_REQUEST_SENT' | 'INSTRUCTOR_FORM' | 'INSTRUCTOR_SENT';
 
 export default function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const portalParam = searchParams.get('portal');
+
   const [activeTab, setActiveTab] = useState<LoginTab>('STUDENT');
   
   const [email, setEmail] = useState('');
@@ -18,7 +21,6 @@ export default function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
 
   // Forgot Password Modal state
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -28,6 +30,16 @@ export default function LoginForm() {
   const [forgotError, setForgotError] = useState<string | null>(null);
   const [forgotSuccessMessage, setForgotSuccessMessage] = useState<string | null>(null);
   const [instructorMessage, setInstructorMessage] = useState('');
+
+  // Check portal param in URL
+  useEffect(() => {
+    if (portalParam === 'admin' || portalParam === 'staff') {
+      setActiveTab('ADMIN');
+      if (portalParam === 'admin') {
+        setEmail('ugettechnologies@gmail.com');
+      }
+    }
+  }, [portalParam]);
 
   // Load saved credentials if 'Remember me' was enabled
   useEffect(() => {
@@ -49,26 +61,6 @@ export default function LoginForm() {
     setForgotError(null);
     setForgotSuccessMessage(null);
     setInstructorMessage('');
-  };
-
-  const handleDemoLogin = async () => {
-    setError(null);
-    setDemoLoading(true);
-    try {
-      const response = await fetch('/api/auth/demo', { method: 'POST' });
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.error || 'Demo login failed.');
-        setDemoLoading(false);
-        return;
-      }
-      router.push('/student');
-      router.refresh();
-    } catch (err) {
-      console.error(err);
-      setError('An error occurred during demo setup. Please try again.');
-      setDemoLoading(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,15 +91,29 @@ export default function LoginForm() {
         return;
       }
 
-      // Check if user role matches active path
       const userRole = data.role as string;
+
+      // Allow ADMIN and STAFF to sign in directly
+      if (userRole === 'ADMIN') {
+        router.push('/admin');
+        router.refresh();
+        return;
+      }
+
+      if (userRole === 'STAFF') {
+        router.push('/staff');
+        router.refresh();
+        return;
+      }
+
+      // Check if student/instructor matches tab
       if (activeTab === 'STUDENT' && userRole !== 'STUDENT') {
         setError('This account is an Instructor account. Please switch to the Instructor / Coach Login tab.');
         setLoading(false);
         return;
       }
 
-      if (activeTab === 'INSTRUCTOR' && userRole !== 'INSTRUCTOR' && userRole !== 'ADMIN' && userRole !== 'STAFF') {
+      if (activeTab === 'INSTRUCTOR' && userRole !== 'INSTRUCTOR') {
         setError('This account is a Student account. Please switch to the Student Login tab.');
         setLoading(false);
         return;
@@ -198,26 +204,26 @@ export default function LoginForm() {
           UGET Academy
         </h2>
         <p className="mt-1 text-xs text-gray-400">
-          Select your learning role to access your portal
+          Select your portal role to sign in
         </p>
       </div>
 
-      {/* Dual Path Selector Tabs */}
-      <div className="grid grid-cols-2 gap-1 p-1.5 bg-[#0F172A] border border-white/10 rounded-2xl shadow-lg">
+      {/* Selector Tabs */}
+      <div className="grid grid-cols-3 gap-1 p-1.5 bg-[#0F172A] border border-white/10 rounded-2xl shadow-lg">
         <button
           type="button"
           onClick={() => {
             setActiveTab('STUDENT');
             setError(null);
           }}
-          className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold transition-all duration-200 ${
+          className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 ${
             activeTab === 'STUDENT'
               ? 'bg-gradient-to-r from-[#2563EB] to-[#3B82F6] text-white shadow-md shadow-blue-500/20'
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <GraduationCap className="w-4 h-4 shrink-0" />
-          <span>Student Login</span>
+          <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+          <span>Student</span>
         </button>
 
         <button
@@ -226,19 +232,36 @@ export default function LoginForm() {
             setActiveTab('INSTRUCTOR');
             setError(null);
           }}
-          className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs font-bold transition-all duration-200 ${
+          className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 ${
             activeTab === 'INSTRUCTOR'
               ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md shadow-purple-500/20'
               : 'text-gray-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <UserCheck className="w-4 h-4 shrink-0" />
-          <span>Instructor / Coach</span>
+          <UserCheck className="w-3.5 h-3.5 shrink-0" />
+          <span>Instructor</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('ADMIN');
+            setEmail('ugettechnologies@gmail.com');
+            setError(null);
+          }}
+          className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all duration-200 ${
+            activeTab === 'ADMIN'
+              ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-md shadow-amber-500/20 font-black'
+              : 'text-gray-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Shield className="w-3.5 h-3.5 shrink-0" />
+          <span>Admin</span>
         </button>
       </div>
 
       {/* Path Specific Context Notice */}
-      {activeTab === 'STUDENT' ? (
+      {activeTab === 'STUDENT' && (
         <div className="rounded-xl bg-blue-950/30 border border-blue-500/20 p-3.5 text-xs text-blue-300 flex items-start gap-2.5">
           <Info className="w-4 h-4 shrink-0 text-blue-400 mt-0.5" />
           <div className="space-y-1">
@@ -253,17 +276,31 @@ export default function LoginForm() {
               >
                 uget-enrollment.online <ExternalLink className="w-3 h-3 inline" />
               </a>
-              . Once payment is complete, Admin generates your admission number (e.g. 2026/STU/A026) and emails your password.
+              . Once payment is complete, Admin emails your password.
             </p>
           </div>
         </div>
-      ) : (
+      )}
+
+      {activeTab === 'INSTRUCTOR' && (
         <div className="rounded-xl bg-purple-950/30 border border-purple-500/20 p-3.5 text-xs text-purple-300 flex items-start gap-2.5">
           <Shield className="w-4 h-4 shrink-0 text-purple-400 mt-0.5" />
           <div className="space-y-1">
             <p className="font-semibold text-purple-200">Admin-Managed Instructor Accounts</p>
             <p className="text-[11px] leading-relaxed text-purple-300/90">
-              Instructor accounts are assigned directly by Academy Administration. Department login IDs are formatted by department, e.g. <strong className="text-white">UGT2026/INSCS/A026</strong> (Cybersecurity) or <strong className="text-white">UGT2026/INSDA/A026</strong> (Data Analyst).
+              Instructor accounts are assigned directly by Academy Administration. Login IDs are formatted by department, e.g. <strong className="text-white">UGT2026/INSCS/A026</strong>.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'ADMIN' && (
+        <div className="rounded-xl bg-amber-950/30 border border-amber-500/20 p-3.5 text-xs text-amber-300 flex items-start gap-2.5">
+          <Shield className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold text-amber-200">Super Admin & HR Staff Authentication</p>
+            <p className="text-[11px] leading-relaxed text-amber-300/90">
+              Only authorized Super Admin email <strong className="text-white">ugettechnologies@gmail.com</strong> or Admin-provisioned HR Staff accounts can sign in.
             </p>
           </div>
         </div>
@@ -282,18 +319,22 @@ export default function LoginForm() {
           <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-300 mb-1.5">
             {activeTab === 'STUDENT'
               ? 'Admission Number or Email Address'
-              : 'Department Instructor ID or Email'}
+              : activeTab === 'INSTRUCTOR'
+              ? 'Department Instructor ID or Email'
+              : 'Admin Email (ugettechnologies@gmail.com)'}
           </label>
           <input
             type="text"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="block w-full rounded-xl border border-white/10 bg-[#0F172A]/70 px-4 py-3 text-white placeholder-gray-500 focus:border-brand-accent focus:ring-1 focus:ring-brand-accent focus:outline-none transition text-xs font-mono"
+            className="block w-full rounded-xl border border-white/10 bg-[#0F172A]/70 px-4 py-3 text-white placeholder-gray-500 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus:outline-none transition text-xs font-mono"
             placeholder={
               activeTab === 'STUDENT'
                 ? 'e.g. 2026/STU/A026 or student@uget.edu'
-                : 'e.g. UGT2026/INSCS/A026 or UGT2026/INSDA/A026'
+                : activeTab === 'INSTRUCTOR'
+                ? 'e.g. UGT2026/INSCS/A026 or UGT2026/INSDA/A026'
+                : 'ugettechnologies@gmail.com'
             }
           />
         </div>
@@ -308,7 +349,7 @@ export default function LoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="block w-full rounded-xl border border-white/10 bg-[#0F172A]/70 pl-4 pr-11 py-3 text-white placeholder-gray-500 focus:border-brand-accent focus:ring-1 focus:ring-brand-accent focus:outline-none transition text-xs font-mono"
+              className="block w-full rounded-xl border border-white/10 bg-[#0F172A]/70 pl-4 pr-11 py-3 text-white placeholder-gray-500 focus:border-amber-400 focus:ring-1 focus:ring-amber-400 focus:outline-none transition text-xs font-mono"
               placeholder="••••••••••••"
             />
             <button
@@ -327,7 +368,7 @@ export default function LoginForm() {
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="rounded border-white/10 bg-[#0F172A] text-brand-accent focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer"
+              className="rounded border-white/10 bg-[#0F172A] text-amber-500 focus:ring-0 focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer"
             />
             <span>Remember me</span>
           </label>
@@ -338,7 +379,7 @@ export default function LoginForm() {
               setForgotInput(email);
               setShowForgotModal(true);
             }}
-            className="text-[11px] text-brand-accent hover:underline font-medium"
+            className="text-[11px] text-amber-400 hover:underline font-medium"
           >
             Forgot password?
           </button>
@@ -346,23 +387,26 @@ export default function LoginForm() {
 
         <button
           type="submit"
-          disabled={loading || demoLoading}
+          disabled={loading}
           className={`w-full rounded-xl py-3.5 text-xs font-bold text-white transition duration-150 disabled:opacity-50 shadow-lg ${
             activeTab === 'STUDENT'
               ? 'bg-gradient-to-r from-[#2563EB] to-[#60A5FA] hover:from-[#2563EB]/90 hover:to-[#60A5FA]/90 shadow-blue-500/20'
-              : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-600/90 hover:to-indigo-600/90 shadow-purple-500/20'
+              : activeTab === 'INSTRUCTOR'
+              ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-600/90 hover:to-indigo-600/90 shadow-purple-500/20'
+              : 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black shadow-amber-500/20'
           }`}
         >
           {loading
             ? 'Authenticating...'
             : activeTab === 'STUDENT'
             ? 'Sign In to Student Portal'
-            : 'Sign In to Instructor Portal'}
+            : activeTab === 'INSTRUCTOR'
+            ? 'Sign In to Instructor Portal'
+            : 'Sign In to Admin / Staff Portal'}
         </button>
-
       </form>
 
-      {/* ─── FORGOT PASSWORD MODAL ─────────────────────────────────────────────── */}
+      {/* FORGOT PASSWORD MODAL */}
       {showForgotModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
           <div className="bg-[#0F172A] border border-white/10 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative text-left">
@@ -374,19 +418,15 @@ export default function LoginForm() {
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-brand-primary/20 text-brand-accent rounded-xl">
+              <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl">
                 <Key className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="font-bold text-white text-base">
-                  {activeTab === 'INSTRUCTOR' || forgotStep === 'INSTRUCTOR_FORM' || forgotStep === 'INSTRUCTOR_SENT'
-                    ? 'Instructor Password Verification Query'
-                    : 'Student Password Reset Request'}
+                  Password Recovery Query
                 </h3>
                 <p className="text-xs text-gray-400">
-                  {activeTab === 'STUDENT'
-                    ? 'Forgotten passwords require Admin verification before a new password is issued.'
-                    : 'Submit an identity query to the Academy Administrator to reset your password.'}
+                  Password reset requests are submitted directly to Administration for approval.
                 </p>
               </div>
             </div>
@@ -398,143 +438,39 @@ export default function LoginForm() {
               </div>
             )}
 
-            {/* STEP: IDENTIFY FOR STUDENT OR INSTRUCTOR */}
-            {forgotStep === 'IDENTIFY' && activeTab === 'STUDENT' && (
-              <form onSubmit={handleForgotIdentify} className="space-y-4 pt-1">
-                <div>
-                  <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-300 mb-1">
-                    Student Email or Admission Number
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. 2026/STU/A026 or email@example.com"
-                    value={forgotInput}
-                    onChange={(e) => setForgotInput(e.target.value)}
-                    className="block w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-white placeholder-gray-500 focus:border-brand-accent focus:outline-none transition text-xs font-mono"
-                  />
-                </div>
-                <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-[11px] text-gray-300 space-y-1.5">
-                  <p className="font-semibold text-gray-200">Academy Password Policy:</p>
-                  <p>• Student password reset requests are submitted directly to Administration for approval.</p>
-                  <p>• Upon approval, your updated password credentials will be sent to your registered email.</p>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={closeForgotModal}
-                    className="px-4 py-2 text-xs font-semibold border border-white/10 text-gray-300 rounded-xl hover:bg-white/5 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={forgotLoading || !forgotInput.trim()}
-                    className="px-5 py-2 text-xs font-bold bg-brand-primary hover:bg-brand-primary/90 text-white rounded-xl transition flex items-center gap-2 disabled:opacity-50"
-                  >
-                    {forgotLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                    Submit Request to Admin
-                  </button>
-                </div>
-              </form>
-            )}
+            <form onSubmit={handleForgotIdentify} className="space-y-4 pt-1">
+              <div>
+                <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-300 mb-1">
+                  Email or User ID
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. ugettechnologies@gmail.com or 2026/STU/A026"
+                  value={forgotInput}
+                  onChange={(e) => setForgotInput(e.target.value)}
+                  className="block w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-white placeholder-gray-500 focus:border-amber-400 focus:outline-none transition text-xs font-mono"
+                />
+              </div>
 
-            {forgotStep === 'IDENTIFY' && activeTab === 'INSTRUCTOR' && (
-              <form onSubmit={handleInstructorResetRequest} className="space-y-4 pt-1">
-                <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 text-[11px] text-purple-300 space-y-1">
-                  <p className="font-bold">Instructor Password Recovery</p>
-                  <p>Instructor accounts are managed by Administration. Explain your issue or state your Department ID below to request a manual password reset.</p>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-300 mb-1">
-                    Your Department Instructor ID or Email
-                  </label>
-                  <input
-                    type="text"
-                    value={forgotInput}
-                    onChange={(e) => setForgotInput(e.target.value)}
-                    required
-                    className="block w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition text-xs font-mono"
-                    placeholder="e.g. UGT2026/INSCS/A026 or instructor@uget.edu"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-semibold uppercase tracking-wider text-gray-300 mb-1">
-                    Verification Query / Message to Admin
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={instructorMessage}
-                    onChange={(e) => setInstructorMessage(e.target.value)}
-                    placeholder="e.g. Hello Admin, I am unable to sign in to my Cybersecurity instructor account UGT2026/INSCS/A026. Please reset my credentials."
-                    className="block w-full rounded-xl border border-white/10 bg-black/40 px-3.5 py-2.5 text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none transition text-xs"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={closeForgotModal}
-                    className="px-4 py-2 text-xs font-semibold border border-white/10 text-gray-300 rounded-xl hover:bg-white/5 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={forgotLoading || !forgotInput.trim()}
-                    className="px-5 py-2 text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition flex items-center gap-2 disabled:opacity-50"
-                  >
-                    {forgotLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                    Send Query to Admin
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* STEP: STUDENT REQUEST SENT */}
-            {forgotStep === 'STUDENT_REQUEST_SENT' && (
-              <div className="space-y-4 pt-1">
-                <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 space-y-2">
-                  <p className="font-bold flex items-center gap-1.5 text-emerald-200">
-                    <Check className="w-4 h-4 text-emerald-400" /> Request Dispatched to Admin!
-                  </p>
-                  <p className="text-[11px] leading-relaxed text-gray-300">
-                    {forgotSuccessMessage || 'Your password reset request has been logged and sent to the Academy Administrator for approval.'}
-                  </p>
-                </div>
+              <div className="flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={closeForgotModal}
-                  className="w-full py-2.5 text-xs font-bold bg-brand-primary text-white rounded-xl hover:bg-brand-primary/90 transition"
+                  className="px-4 py-2 text-xs font-semibold border border-white/10 text-gray-300 rounded-xl hover:bg-white/5 transition"
                 >
-                  Return to Login
+                  Cancel
                 </button>
-              </div>
-            )}
-
-            {/* STEP: INSTRUCTOR SENT */}
-            {forgotStep === 'INSTRUCTOR_SENT' && (
-              <div className="space-y-4 pt-1">
-                <div className="p-4 rounded-xl bg-purple-500/10 border border-purple-500/20 text-xs text-purple-300 space-y-2">
-                  <p className="font-bold flex items-center gap-1.5 text-purple-200">
-                    <Check className="w-4 h-4 text-purple-400" /> Query Submitted to Admin!
-                  </p>
-                  <p className="text-[11px] leading-relaxed text-gray-300">
-                    Your identity query has been sent to the Academy Administrator. Once verified, your credentials will be reset and sent to your email.
-                  </p>
-                </div>
                 <button
-                  type="button"
-                  onClick={closeForgotModal}
-                  className="w-full py-2.5 text-xs font-bold bg-purple-600 text-white rounded-xl hover:bg-purple-500 transition"
+                  type="submit"
+                  disabled={forgotLoading || !forgotInput.trim()}
+                  className="px-5 py-2 text-xs font-bold bg-amber-500 text-slate-950 hover:bg-amber-400 rounded-xl transition flex items-center gap-2 disabled:opacity-50 font-black"
                 >
-                  Return to Login
+                  {forgotLoading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  Submit Request
                 </button>
               </div>
-            )}
-
+            </form>
           </div>
         </div>
       )}
