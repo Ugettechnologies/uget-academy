@@ -6,12 +6,11 @@ import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import { 
   UserCheck, 
-  Layers, 
   Users, 
-  Link2, 
   FileText, 
   LogOut,
-  ShieldCheck
+  FolderOpen,
+  UserPlus
 } from 'lucide-react';
 
 interface StaffSidebarProps {
@@ -25,6 +24,15 @@ interface StaffSidebarProps {
 
 export default function StaffSidebar({ user, onLinkClick }: StaffSidebarProps) {
   const pathname = usePathname();
+
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // ignore
+    }
+    window.location.href = '/staff/login';
+  };
 
   return (
     <aside className="w-64 bg-[#0F172A] border-r border-white/10 flex flex-col h-full relative text-white">
@@ -44,7 +52,7 @@ export default function StaffSidebar({ user, onLinkClick }: StaffSidebarProps) {
               UGET
             </span>
             <span className="text-indigo-400 font-extrabold text-[10px] tracking-widest uppercase leading-none">
-              Platform Ops & HR
+              HR & Staff Portal
             </span>
           </div>
         </Link>
@@ -60,66 +68,64 @@ export default function StaffSidebar({ user, onLinkClick }: StaffSidebarProps) {
             {user.firstName} {user.lastName}
           </span>
           <span className="text-[10px] text-indigo-300 font-mono font-bold uppercase">
-            Platform Operator
+            Operations & HR Staff
           </span>
         </div>
       </div>
 
       {/* Navigation List */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto custom-scrollbar">
+      <nav className="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto custom-scrollbar">
         <Link
           href="/staff"
           onClick={onLinkClick}
           className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
             pathname === '/staff'
-              ? 'bg-indigo-600 text-white shadow-md'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
               : 'text-gray-400 hover:bg-white/5 hover:text-white'
           }`}
         >
           <UserCheck className="w-4 h-4 shrink-0" />
-          <span>Ops Dashboard</span>
+          <span>Operations Overview</span>
         </Link>
 
-        {/* Class Sections & Roster Maintenance */}
+        {/* Student Roster & Documents */}
         <Link
-          href="/admin/classes"
+          href="/staff/students"
           onClick={onLinkClick}
-          className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:bg-white/5 hover:text-white transition-all duration-200"
+          className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+            pathname === '/staff/students'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+              : 'text-gray-400 hover:bg-white/5 hover:text-white'
+          }`}
         >
-          <Layers className="w-4 h-4 shrink-0 text-cyan-400" />
-          <span>Class Sections & Assigning</span>
+          <Users className="w-4 h-4 shrink-0 text-cyan-400" />
+          <span>Student Roster & Documents</span>
         </Link>
 
-        {/* Staff Intake Link Copy */}
+        {/* New Staff Intake & Documents */}
         <Link
           href="/staff/onboarding"
           onClick={onLinkClick}
           className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
             pathname === '/staff/onboarding'
-              ? 'bg-indigo-600 text-white shadow-md'
+              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
               : 'text-gray-400 hover:bg-white/5 hover:text-white'
           }`}
         >
-          <Link2 className="w-4 h-4 shrink-0 text-teal-400" />
-          <span>Staff Intake Portal</span>
-        </Link>
-
-        {/* Admin Overview Link */}
-        <Link
-          href="/admin"
-          onClick={onLinkClick}
-          className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold text-gray-400 hover:bg-white/5 hover:text-white transition-all duration-200 border border-white/5"
-        >
-          <ShieldCheck className="w-4 h-4 shrink-0 text-amber-400" />
-          <span>Admin Portal View</span>
+          <UserPlus className="w-4 h-4 shrink-0 text-teal-400" />
+          <span>Staff Intake & Documents</span>
         </Link>
       </nav>
 
-      {/* Footer Notice: Payment Exclusion */}
-      <div className="p-4 border-t border-white/10 text-center space-y-1">
-        <span className="text-[10px] text-gray-400 font-mono block">
-          ℹ️ Payment module excluded from staff portal (Admin oversight only).
-        </span>
+      {/* Footer Sign Out */}
+      <div className="p-4 border-t border-white/10 space-y-2">
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-red-400 hover:bg-red-950/40 border border-red-500/20 transition"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Sign Out Staff Session</span>
+        </button>
       </div>
     </aside>
   );

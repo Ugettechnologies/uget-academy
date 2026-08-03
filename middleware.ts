@@ -11,6 +11,9 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next') || 
     pathname.match(/\.(.*)$/) ||
     pathname === '/login' ||
+    pathname === '/admin/login' ||
+    pathname === '/staff/login' ||
+    pathname.startsWith('/staff/onboarding') ||
     pathname.startsWith('/register') ||
     pathname === '/' ||
     pathname === '/unauthorized'
@@ -21,12 +24,25 @@ export async function middleware(request: NextRequest) {
   const session = request.cookies.get('session')?.value;
   
   if (!session) {
+    // If accessing admin, redirect to /admin/login. If accessing staff, redirect to /staff/login. Otherwise /login
+    if (pathname.startsWith('/admin')) {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+    if (pathname.startsWith('/staff')) {
+      return NextResponse.redirect(new URL('/staff/login', request.url));
+    }
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
   const payload = await verifyToken(session);
   
   if (!payload) {
+    if (pathname.startsWith('/admin')) {
+      return NextResponse.redirect(new URL('/admin/login', request.url));
+    }
+    if (pathname.startsWith('/staff')) {
+      return NextResponse.redirect(new URL('/staff/login', request.url));
+    }
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
@@ -54,13 +70,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     '/((?!api|_next/static|_next/image|favicon.ico).*)',
   ],
 };

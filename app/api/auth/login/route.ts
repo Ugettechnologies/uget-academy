@@ -7,10 +7,10 @@ import { checkLoginRateLimit } from '@/lib/rate-limit';
 const loginSchema = z.object({
   email: z.string().min(1, 'Email address or Student ID / Username is required'),
   password: z.string().min(1, 'Password is required'),
+  expectedRole: z.string().optional(),
 });
 
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
-const ADMIN_GMAIL = 'ugettechnologies@gmail.com';
 
 export async function POST(request: Request) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
@@ -18,6 +18,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const loginInput = body?.email || '';
+    const expectedRole = body?.expectedRole;
 
     // Fast Rate Limiting check
     const rateLimitResult = await checkLoginRateLimit(ip, loginInput);
@@ -57,12 +58,12 @@ export async function POST(request: Request) {
       });
     }
 
-    // Auto-provision Super Admin account for ugettechnologies@gmail.com if missing on first login
-    if (!user && cleanIdentifier === ADMIN_GMAIL) {
+    // Auto-provision Super Admin account for any new email signing in on Admin Portal if no Admin exists yet or for this email
+    if (!user && expectedRole === 'ADMIN') {
       const passwordHash = await hashPassword(password);
       user = await prisma.user.create({
         data: {
-          email: ADMIN_GMAIL,
+          email: cleanIdentifier,
           firstName: 'UGET',
           lastName: 'Admin',
           passwordHash,
@@ -76,14 +77,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Invalid Email/Username or password.' },
         { status: 401 }
-      );
-    }
-
-    // Strict Enforcement: Only ugettechnologies@gmail.com can log in as ADMIN
-    if (user.role === 'ADMIN' && user.email.toLowerCase() !== ADMIN_GMAIL) {
-      return NextResponse.json(
-        { error: 'Unauthorized: Only ugettechnologies@gmail.com can sign in as Super Administrator.' },
-        { status: 403 }
       );
     }
 
