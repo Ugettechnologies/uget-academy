@@ -3,10 +3,9 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { comparePassword, createSession } from '@/lib/auth';
 import { checkLoginRateLimit } from '@/lib/rate-limit';
-import { verifyTurnstile } from '@/lib/turnstile';
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().min(1, 'Email address or Student ID / Username is required'),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -17,10 +16,10 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const loginEmail = body?.email || '';
+    const loginInput = body?.email || '';
 
-    // Rate Limiting by IP + email
-    const rateLimitResult = await checkLoginRateLimit(ip, loginEmail);
+    // Rate Limiting by IP + loginInput
+    const rateLimitResult = await checkLoginRateLimit(ip, loginInput);
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Too many login attempts. Please try again in a few minutes.' },
@@ -37,17 +36,47 @@ export async function POST(request: Request) {
       );
     }
 
-    const { email, password } = result.data;
+    const { email: inputIdentifier, password } = result.data;
+    const cleanIdentifier = inputIdentifier.trim();
 
-    const user = await prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
+    // Query DB by Email or Username (e.g. 374/CO1/A026 / 2026/STU/A026)
+    // Falls back to email-only if username column hasn't been migrated yet
+    let user;
+    try {
+      user = await prisma.user.findFirst({
+        where: {
+          OR: [
+            { email: cleanIdentifier.toLowerCase() },
+            { username: cleanIdentifier },
+          ],
+        },
+      });
+    } catch {
+      // Fallback: username column may not exist in DB yet
+      user = await prisma.user.findUnique({
+        where: { email: cleanIdentifier.toLowerCase() },
+      });
+    }
 
     if (!user) {
-      // Vague error: do not reveal that the email doesn't exist
       return NextResponse.json(
-        { error: 'Invalid email or password.' },
+        { error: 'Invalid Email/Username or password.' },
         { status: 401 }
+      );
+    }
+
+    // Check Approval Status (only when status field exists in DB)
+    if ((user as any).status === 'PENDING_APPROVAL') {
+      return NextResponse.json(
+        { error: 'Your registration is pending Admin approval. Login credentials will be activated upon approval.' },
+        { status: 403 }
+      );
+    }
+
+    if ((user as any).status === 'REJECTED') {
+      return NextResponse.json(
+        { error: 'Your account application was not approved by administration.' },
+        { status: 403 }
       );
     }
 
@@ -66,7 +95,6 @@ export async function POST(request: Request) {
     const isPasswordMatch = await comparePassword(password, user.passwordHash);
 
     if (!isPasswordMatch) {
-      // Increment failed attempts
       const updatedFailedAttempts = user.failedAttempts + 1;
       const shouldLockout = updatedFailedAttempts >= 5;
       
@@ -87,18 +115,9 @@ export async function POST(request: Request) {
         );
       }
 
-      // Vague error: same message as if email doesn't exist
       return NextResponse.json(
-        { error: 'Invalid email or password.' },
+        { error: 'Invalid Email/Username or password.' },
         { status: 401 }
-      );
-    }
-
-    // Email verification check
-    if (!user.emailVerified) {
-      return NextResponse.json(
-        { error: 'Please verify your email before logging in.' },
-        { status: 403 }
       );
     }
 
@@ -116,6 +135,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       message: 'Login successful',
       role: user.role,
+      username: user.username,
     });
 
   } catch (error) {

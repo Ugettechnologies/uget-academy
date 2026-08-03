@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSession, hashPassword } from '@/lib/auth';
+import { getSession, hashPassword, generateStudentUsername, generateInstructorUsername } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAdminAction } from '@/lib/audit-log';
 import { z } from 'zod';
@@ -8,8 +8,10 @@ import crypto from 'crypto';
 const updateSchema = z.object({
   targetUserId: z.string().min(1, 'Target user ID is required'),
   newRole: z.enum(['STUDENT', 'INSTRUCTOR', 'ADMIN', 'STAFF']).optional(),
-  action: z.enum(['UPDATE_ROLE', 'RESET_PASSWORD']).default('UPDATE_ROLE'),
+  status: z.enum(['APPROVED', 'PENDING_APPROVAL', 'REJECTED']).optional(),
+  action: z.enum(['UPDATE_ROLE', 'RESET_PASSWORD', 'APPROVE_USER', 'REPLACE_INSTRUCTOR']).default('UPDATE_ROLE'),
   passwordCode: z.string().optional(),
+  replacementInstructorId: z.string().optional(),
 });
 
 const createUserSchema = z.object({
@@ -17,16 +19,12 @@ const createUserSchema = z.object({
   lastName: z.string().min(2, 'Last name is too short'),
   email: z.string().email('Invalid email address'),
   role: z.enum(['STUDENT', 'INSTRUCTOR', 'ADMIN', 'STAFF']),
+  departmentCode: z.string().optional(), // e.g. CS, DA, SE, UI
   passwordCode: z.string().optional(),
 });
 
-function generateInstructorCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // exclude confusing chars like O, 0, I, 1
-  let code = '';
-  for (let i = 0; i < 5; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return `2026/${code}`;
+function generateInstructorCode(deptCode?: string): string {
+  return generateInstructorUsername(deptCode);
 }
 
 // GET: Fetch list of users (Admin only)
@@ -37,12 +35,11 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Double-verify against DB
   const adminUser = await prisma.user.findUnique({
     where: { id: session.userId as string },
   });
 
-  if (!adminUser || adminUser.role !== 'ADMIN') {
+  if (!adminUser || (adminUser.role !== 'ADMIN' && adminUser.role !== 'STAFF')) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
@@ -53,8 +50,29 @@ export async function GET(request: Request) {
         firstName: true,
         lastName: true,
         email: true,
+        username: true,
         role: true,
+        status: true,
+        phone: true,
+        bio: true,
         createdAt: true,
+        coursesAsInstructor: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+        enrollments: {
+          select: {
+            id: true,
+            course: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -68,7 +86,7 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: Pre-register a new user (Admin only)
+// POST: Pre-register a new user and generate Username (e.g. 2026/STU/A026 or UGT2026/INSCS/A026)
 export async function POST(request: Request) {
   const session = await getSession();
   
@@ -92,7 +110,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid input parameters' }, { status: 400 });
     }
 
-    const { firstName, lastName, email, role, passwordCode } = result.data;
+    const { firstName, lastName, email, role, departmentCode, passwordCode } = result.data;
 
     // Check if email already exists
     const existingUser = await prisma.user.findUnique({
@@ -103,7 +121,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'A user with this email address already exists' }, { status: 400 });
     }
 
-    // Generate password code
+    // Generate Username (e.g. 2026/STU/A026 for students, UGT2026/INSCS/A026 for instructors)
+    let generatedUsername = '';
+    if (role === 'STUDENT') {
+      generatedUsername = generateStudentUsername();
+    } else if (role === 'INSTRUCTOR') {
+      generatedUsername = generateInstructorUsername(departmentCode);
+    } else {
+      generatedUsername = `ADM/${Math.floor(100 + Math.random() * 900)}`;
+    }
+
+    // Generate Password Code
     let rawPasswordCode = '';
     if (role === 'STUDENT') {
       rawPasswordCode = crypto.randomUUID();
@@ -111,7 +139,7 @@ export async function POST(request: Request) {
       if (passwordCode && passwordCode.trim().length > 0) {
         rawPasswordCode = passwordCode.trim();
       } else {
-        rawPasswordCode = generateInstructorCode();
+        rawPasswordCode = generateInstructorCode(departmentCode);
       }
     } else {
       rawPasswordCode = passwordCode || crypto.randomUUID();
@@ -124,9 +152,11 @@ export async function POST(request: Request) {
         firstName,
         lastName,
         email: email.toLowerCase(),
+        username: generatedUsername,
         passwordHash,
         role,
-        emailVerified: true, // Pre-verified since registration/payment done on enrollment portal
+        status: 'APPROVED',
+        emailVerified: true,
       },
     });
 
@@ -139,20 +169,24 @@ export async function POST(request: Request) {
       targetId: user.id,
       metadata: {
         userEmail: user.email,
+        username: user.username,
+        departmentCode,
         role,
       },
       ip,
     });
 
     return NextResponse.json({
-      message: `${role} pre-registered successfully.`,
+      message: `${role} pre-registered successfully with username "${generatedUsername}".`,
       user: {
         id: user.id,
         email: user.email,
+        username: user.username,
         role: user.role,
         firstName: user.firstName,
         lastName: user.lastName,
       },
+      username: generatedUsername,
       passwordCode: rawPasswordCode,
     }, { status: 201 });
 
@@ -162,7 +196,7 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH: Update user role or reset password code (Admin only)
+// PATCH: Update user role, status (approve/reject), reset password code, or replace instructor
 export async function PATCH(request: Request) {
   const session = await getSession();
   
@@ -170,7 +204,6 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Double-verify against DB to get the admin's email and actual permissions
   const adminUser = await prisma.user.findUnique({
     where: { id: session.userId as string },
   });
@@ -187,9 +220,8 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Invalid parameters' }, { status: 400 });
     }
 
-    const { targetUserId, newRole, action, passwordCode } = result.data;
+    const { targetUserId, newRole, status, action, passwordCode, replacementInstructorId } = result.data;
 
-    // Get the target user before update for logging context
     const targetUser = await prisma.user.findUnique({
       where: { id: targetUserId },
     });
@@ -200,25 +232,80 @@ export async function PATCH(request: Request) {
 
     const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
 
-    if (action === 'RESET_PASSWORD') {
+    // 1. APPROVE USER ACTION
+    if (action === 'APPROVE_USER') {
+      let assignedUsername = targetUser.username;
+      if (!assignedUsername) {
+        assignedUsername = targetUser.role === 'STUDENT' 
+          ? generateStudentUsername() 
+          : generateInstructorUsername();
+      }
+
       let rawPasswordCode = '';
-      if (targetUser.role === 'STUDENT') {
-        rawPasswordCode = crypto.randomUUID();
-      } else if (targetUser.role === 'INSTRUCTOR') {
-        if (passwordCode && passwordCode.trim().length > 0) {
-          rawPasswordCode = passwordCode.trim();
-        } else {
-          rawPasswordCode = generateInstructorCode();
-        }
+      if (passwordCode && passwordCode.trim().length > 0) {
+        rawPasswordCode = passwordCode.trim();
       } else {
-        rawPasswordCode = passwordCode || crypto.randomUUID();
+        rawPasswordCode = targetUser.role === 'INSTRUCTOR' ? generateInstructorCode() : crypto.randomUUID();
       }
 
       const passwordHash = await hashPassword(rawPasswordCode);
 
+      const updatedUser = await prisma.user.update({
+        where: { id: targetUserId },
+        data: {
+          status: 'APPROVED',
+          username: assignedUsername,
+          passwordHash,
+          emailVerified: true,
+        },
+      });
+
+      await logAdminAction({
+        userId: adminUser.id,
+        userEmail: adminUser.email,
+        action: 'UPDATE_USER_ROLE' as any,
+        targetId: targetUserId,
+        metadata: {
+          actionType: 'APPROVE_USER',
+          targetEmail: targetUser.email,
+          username: assignedUsername,
+          role: targetUser.role,
+        },
+        ip,
+      });
+
+      return NextResponse.json({
+        message: `${targetUser.firstName} ${targetUser.lastName} approved successfully!`,
+        username: assignedUsername,
+        passwordCode: rawPasswordCode,
+        user: updatedUser,
+      });
+    }
+
+    // 2. RESET PASSWORD ACTION
+    if (action === 'RESET_PASSWORD') {
+      let rawPasswordCode = '';
+      if (passwordCode && passwordCode.trim().length > 0) {
+        rawPasswordCode = passwordCode.trim();
+      } else {
+        rawPasswordCode = crypto.randomUUID().slice(0, 8).toUpperCase();
+      }
+
+      const passwordHash = await hashPassword(rawPasswordCode);
+
+      let currentUsername = targetUser.username;
+      if (!currentUsername) {
+        currentUsername = targetUser.role === 'STUDENT' ? generateStudentUsername() : generateInstructorUsername();
+      }
+
       await prisma.user.update({
         where: { id: targetUserId },
-        data: { passwordHash },
+        data: { 
+          passwordHash,
+          username: currentUsername,
+          failedAttempts: 0,
+          lockoutUntil: null,
+        },
       });
 
       await logAdminAction({
@@ -228,60 +315,91 @@ export async function PATCH(request: Request) {
         targetId: targetUserId,
         metadata: {
           targetUserEmail: targetUser.email,
+          username: currentUsername,
           role: targetUser.role,
         },
         ip,
       });
 
       return NextResponse.json({
-        message: 'Password code reset successfully.',
+        message: `Password code for ${targetUser.firstName} ${targetUser.lastName} (${targetUser.email}) reset successfully by Admin.`,
+        username: currentUsername,
         passwordCode: rawPasswordCode,
       });
     }
 
-    // Default UPDATE_ROLE action
-    if (!newRole) {
-      return NextResponse.json({ error: 'New role is required for role update' }, { status: 400 });
+    // 3. INSTRUCTOR REPLACEMENT ACTION
+    if (action === 'REPLACE_INSTRUCTOR') {
+      if (!replacementInstructorId) {
+        return NextResponse.json({ error: 'Replacement Instructor ID is required.' }, { status: 400 });
+      }
+
+      const replacementInstructor = await prisma.user.findUnique({
+        where: { id: replacementInstructorId },
+      });
+
+      if (!replacementInstructor || replacementInstructor.role !== 'INSTRUCTOR') {
+        return NextResponse.json({ error: 'Selected replacement must be a valid Instructor user.' }, { status: 404 });
+      }
+
+      // Reassign all courses from target (departing) instructor to replacement instructor
+      const reassignedCourses = await prisma.course.updateMany({
+        where: { instructorId: targetUserId },
+        data: { instructorId: replacementInstructorId },
+      });
+
+      // Deactivate departing instructor account
+      await prisma.user.update({
+        where: { id: targetUserId },
+        data: { status: 'REJECTED' },
+      });
+
+      await logAdminAction({
+        userId: adminUser.id,
+        userEmail: adminUser.email,
+        action: 'UPDATE_USER_ROLE' as any,
+        targetId: targetUserId,
+        metadata: {
+          actionType: 'REPLACE_INSTRUCTOR',
+          departingInstructorEmail: targetUser.email,
+          replacementInstructorEmail: replacementInstructor.email,
+          coursesTransferred: reassignedCourses.count,
+        },
+        ip,
+      });
+
+      return NextResponse.json({
+        message: `Instructor replacement complete. ${reassignedCourses.count} course(s) and student rosters transferred to ${replacementInstructor.firstName} ${replacementInstructor.lastName}. Outgoing instructor account deactivated.`,
+        transferredCoursesCount: reassignedCourses.count,
+      });
     }
 
-    // Prevent modifying own role
-    if (targetUserId === adminUser.id) {
+    // 4. DEFAULT UPDATE ROLE / STATUS ACTION
+    if (targetUserId === adminUser.id && newRole) {
       return NextResponse.json({ error: 'You cannot change your own role' }, { status: 400 });
     }
 
-    const oldRole = targetUser.role;
-
-    // Update target user's role
     const updatedUser = await prisma.user.update({
       where: { id: targetUserId },
-      data: { role: newRole },
-    });
-
-    // Log the administrative action
-    await logAdminAction({
-      userId: adminUser.id,
-      userEmail: adminUser.email,
-      action: 'UPDATE_USER_ROLE',
-      targetId: targetUserId,
-      metadata: {
-        targetUserEmail: targetUser.email,
-        oldRole,
-        newRole,
+      data: {
+        ...(newRole ? { role: newRole } : {}),
+        ...(status ? { status } : {}),
       },
-      ip,
     });
 
     return NextResponse.json({
-      message: `User role updated successfully from ${oldRole} to ${newRole}`,
+      message: 'User updated successfully',
       user: {
         id: updatedUser.id,
         email: updatedUser.email,
+        username: updatedUser.username,
         role: updatedUser.role,
+        status: updatedUser.status,
       },
     });
 
   } catch (error) {
-    console.error('Update user role API error:', error);
+    console.error('Update user API error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

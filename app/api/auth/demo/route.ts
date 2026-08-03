@@ -10,39 +10,45 @@ export async function POST() {
     // 1. Upsert core users
     const admin = await prisma.user.upsert({
       where: { email: 'admin@uget.online' },
-      update: {},
+      update: { status: 'APPROVED' },
       create: {
         firstName: 'Alan',
         lastName: 'Turing',
         email: 'admin@uget.online',
+        username: 'ADM/001',
         passwordHash,
         role: 'ADMIN',
+        status: 'APPROVED',
         emailVerified: true,
       },
     });
 
     const instructor = await prisma.user.upsert({
       where: { email: 'instructor@uget.online' },
-      update: {},
+      update: { status: 'APPROVED' },
       create: {
         firstName: 'Ada',
         lastName: 'Lovelace',
         email: 'instructor@uget.online',
+        username: '2026/INS/DEMO',
         passwordHash,
         role: 'INSTRUCTOR',
+        status: 'APPROVED',
         emailVerified: true,
       },
     });
 
     const demoStudent = await prisma.user.upsert({
       where: { email: 'student@uget.online' },
-      update: {},
+      update: { status: 'APPROVED' },
       create: {
         firstName: 'Grace',
         lastName: 'Hopper',
         email: 'student@uget.online',
+        username: '2026/STU/DEMO',
         passwordHash,
         role: 'STUDENT',
+        status: 'APPROVED',
         emailVerified: true,
       },
     });

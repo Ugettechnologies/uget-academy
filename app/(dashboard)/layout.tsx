@@ -46,7 +46,7 @@ export default async function DashboardLayout({
     ],
   };
 
-  if (role === 'STUDENT') {
+  if (role === 'STUDENT' || role === 'INSTRUCTOR') {
     return <>{children}</>;
   }
 

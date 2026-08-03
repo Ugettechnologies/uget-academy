@@ -29,10 +29,13 @@ model User {
   role          Role      @default(STUDENT)
   emailVerified   Boolean   @default(false)
   failedAttempts  Int       @default(0)
+  forgotPasswordAttempts Int @default(0)
   lockoutUntil    DateTime?
   createdAt       DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   phone         String?
+  username      String?   @unique
+  status        String    @default("APPROVED") // "PENDING_APPROVAL", "APPROVED", "REJECTED"
   bio           String?
   githubUrl     String?
   linkedinUrl   String?

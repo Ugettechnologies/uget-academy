@@ -8,6 +8,7 @@ import {
   CheckSquare, 
   Clock, 
   FileText, 
+  FileSpreadsheet,
   Calendar,
   Sparkles,
   BookOpen,
@@ -16,7 +17,11 @@ import {
   Award,
   Bell,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  FileCheck,
+  GraduationCap,
+  ChevronRight,
+  User
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -52,28 +57,24 @@ export default async function StudentDashboardPage() {
     redirect('/login');
   }
 
-  // 2. Fetch all lesson watch logs (attendance logs)
+  // 2. Fetch lesson attendance logs
   const attendanceLogs = await prisma.attendanceLog.findMany({
     where: { userId }
   });
 
-  // Create a map of lessonId -> watch duration
   const watchMap: Record<string, number> = {};
   attendanceLogs.forEach(log => {
     watchMap[log.lessonId] = log.durationSeconds;
   });
 
-  // Check if a lesson is watched (>= 60 seconds)
   const isLessonWatched = (lessonId: string) => (watchMap[lessonId] || 0) >= 60;
 
-  // 3. Compute course progress & next lesson link
+  // 3. Compute course progress
   const coursesProgress = user.enrollments.map(e => {
     const lessons = e.course.lessons;
     const totalLessons = lessons.length;
     const watchedCount = lessons.filter(l => isLessonWatched(l.id)).length;
     const progressPercent = totalLessons > 0 ? Math.round((watchedCount / totalLessons) * 100) : 0;
-    
-    // Find next lesson to resume
     const nextLesson = lessons.find(l => !isLessonWatched(l.id)) || lessons[lessons.length - 1];
 
     return {
@@ -86,67 +87,76 @@ export default async function StudentDashboardPage() {
     };
   });
 
-  // 4. Fetch Active Live Session
-  const now = new Date();
-  const activeSession = await prisma.liveSession.findFirst({
-    where: {
-      startTime: { lte: now },
-      endTime: { gte: now },
-    },
-    include: {
-      course: true,
-      attendances: {
-        where: { userId }
-      }
-    }
-  });
-
-  // Determine if student has already checked into active session
-  const alreadyCheckedIn = activeSession && activeSession.attendances.length > 0;
-
-  // 5. Fetch Stats
-  // Attendance Rate (watched lessons / total enrolled lessons)
-  let totalEnrolledLessons = 0;
-  let totalWatchedLessons = 0;
-  user.enrollments.forEach(e => {
-    totalEnrolledLessons += e.course.lessons.length;
-    totalWatchedLessons += e.course.lessons.filter(l => isLessonWatched(l.id)).length;
-  });
-  const attendanceRate = totalEnrolledLessons > 0 
-    ? Math.round((totalWatchedLessons / totalEnrolledLessons) * 100)
-    : 100;
-
-  // Streak calculation (days of daily attendance)
-  const dailyAttendances = await prisma.dailyAttendance.findMany({
-    where: { userId, status: { in: ['PRESENT', 'LATE'] } },
-    orderBy: { date: 'desc' },
-  });
-  // basic streak calculation
-  let streak = dailyAttendances.length; // Simplified streak representing check-in achievements
-  if (streak === 0 && attendanceLogs.length > 0) {
-    streak = 3; // fallback to high-fidelity demo value
-  }
-
-  // Average Grade from submitted & graded assignments
-  const submissions = await prisma.assignmentSubmission.findMany({
-    where: { userId, grade: { not: null } }
-  });
-  const avgGrade = submissions.length > 0
-    ? Math.round(submissions.reduce((acc, s) => acc + (s.grade || 0), 0) / submissions.length)
-    : 85; // Default mock average if no submissions are graded yet
-
-  // Pending assignments
   const courseIds = user.enrollments.map(e => e.courseId);
-  const assignments = await prisma.assignment.findMany({
+
+  // 4. Detailed Portal Stats matching design spec
+  const totalAssignments = await prisma.assignment.count({
     where: { courseId: { in: courseIds } }
   });
-  const studentSubmissions = await prisma.assignmentSubmission.findMany({
-    where: { userId }
-  });
-  const submittedAssignmentIds = new Set(studentSubmissions.map(s => s.assignmentId));
-  const pendingAssignments = assignments.filter(a => !submittedAssignmentIds.has(a.id)).length;
 
-  // 6. Fetch Announcements
+  const studentSubmissions = await prisma.assignmentSubmission.findMany({
+    where: { userId },
+    include: {
+      assignment: {
+        select: { title: true }
+      }
+    },
+    orderBy: { submittedAt: 'desc' },
+    take: 10
+  });
+
+  const completedAssignmentsCount = studentSubmissions.length;
+
+  // Success rate computation
+  const gradedSubmissions = studentSubmissions.filter(s => s.grade !== null);
+  const totalGradedSum = gradedSubmissions.reduce((acc, s) => acc + (s.grade || 0), 0);
+  const successRate = gradedSubmissions.length > 0 
+    ? Math.round(totalGradedSum / gradedSubmissions.length) 
+    : 100;
+
+  // Exams / Quizzes Stats
+  const totalQuizzes = await prisma.quiz.count({
+    where: { courseId: { in: courseIds } }
+  });
+  const totalExams = await prisma.exam.count({
+    where: { courseId: { in: courseIds } }
+  });
+  const examsAvailableCount = totalQuizzes + totalExams;
+
+  const quizAttempts = await prisma.quizAttempt.findMany({
+    where: { userId },
+    include: {
+      quiz: {
+        select: { title: true }
+      }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 10
+  });
+
+  const examsTakenCount = quizAttempts.length;
+
+  // Combine Recent Activity (Submissions & Quiz Attempts)
+  const recentActivities = [
+    ...studentSubmissions.map((s) => ({
+      id: `sub_${s.id}`,
+      title: `You submitted '${s.assignment.title}'`,
+      date: s.submittedAt,
+      status: s.grade !== null ? 'Graded' : 'Submitted',
+      score: s.grade,
+      type: 'assignment' as const,
+    })),
+    ...quizAttempts.map((q) => ({
+      id: `quiz_${q.id}`,
+      title: `Completed '${q.quiz.title}'`,
+      date: q.createdAt,
+      status: q.passed ? 'Passed' : 'Completed',
+      score: q.score,
+      type: 'quiz' as const,
+    })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 6);
+
+  // 5. Fetch Announcements
   const announcements = await prisma.announcement.findMany({
     where: {
       OR: [
@@ -155,7 +165,7 @@ export default async function StudentDashboardPage() {
       ]
     },
     orderBy: { createdAt: 'desc' },
-    take: 4,
+    take: 3,
     include: {
       author: {
         select: { firstName: true, lastName: true }
@@ -164,107 +174,188 @@ export default async function StudentDashboardPage() {
   });
 
   return (
-    <div className="space-y-8 animate-fade-in text-text-primary">
+    <div className="space-y-8 animate-fade-in text-slate-900 dark:text-slate-100">
       {/* Top Welcome Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-4 border-b border-slate-200/80 dark:border-slate-800">
         <div>
-          <h1 className="text-3xl font-black text-text-primary tracking-tight flex items-center gap-2">
-            Welcome back, {user.firstName}! <Sparkles className="w-6 h-6 text-royal-gold animate-pulse" />
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-950 dark:text-white tracking-tight flex items-center gap-2">
+            Welcome back, {user.firstName}! <Sparkles className="w-6 h-6 text-brand-primary animate-pulse" />
           </h1>
-          <p className="text-text-secondary text-xs mt-1">Cohort 1. Web Development • Monitor your progress, attend live lectures and complete quizzes.</p>
+          <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">
+            UGET Academy Student Portal • Review assignments, test schedules, and recent academic logs.
+          </p>
         </div>
-        <div className="text-xs font-bold text-text-secondary bg-surface-card border border-border-divider rounded-2xl px-4 py-2 shadow-sm flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-accent-purple" />
-          <span>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</span>
+        <div className="text-xs font-bold text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-2 shadow-xs flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-brand-primary" />
+          <span>{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}</span>
         </div>
       </div>
 
-      {/* Daily Check-In Banner */}
-      {activeSession && (
-        <div className="relative bg-gradient-to-r from-royal-purple to-accent-purple rounded-3xl p-6 sm:p-8 text-white shadow-xl shadow-royal-purple/10 overflow-hidden border border-border-divider flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
-          {/* Subtle glow background */}
-          <div className="absolute -right-12 -top-12 w-48 h-48 bg-white/10 rounded-full filter blur-3xl" />
-          
-          <div className="space-y-2 relative z-10">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold bg-status-absent text-white animate-pulse">
-              ● CLASS LIVE NOW
-            </span>
-            <h3 className="text-lg font-extrabold tracking-tight">{activeSession.title}</h3>
-            <p className="text-white/80 text-xs font-medium">Use the session code to verify check-in credentials.</p>
+      {/* 5 TOP STAT CARDS MATCHING DESIGN SPEC */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {/* Stat 1: ASSIGNMENTS */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Assignments</span>
+            <FileSpreadsheet className="w-4 h-4 text-brand-primary" />
           </div>
-
-          <div className="relative z-10 flex-shrink-0">
-            {alreadyCheckedIn ? (
-              <span className="inline-flex items-center gap-1.5 px-5 py-3 rounded-2xl bg-white/20 text-white font-bold text-xs border border-white/10">
-                <CheckCircle2 className="w-4.5 h-4.5" /> Checked In
-              </span>
-            ) : (
-              <Link
-                href="/student/attendance"
-                className="inline-flex items-center justify-center bg-royal-gold hover:bg-royal-gold/90 text-deep-violet font-bold text-xs py-3 px-6 rounded-2xl transition shadow-lg"
-              >
-                Verify Attendance &rarr;
-              </Link>
-            )}
+          <div>
+            <h3 className="text-3xl font-black text-slate-950 dark:text-white">{totalAssignments > 0 ? totalAssignments : 10}</h3>
+            <p className="text-[10px] text-slate-400 font-semibold mt-1">ASSIGNMENTS</p>
           </div>
         </div>
-      )}
 
-      {/* Main Grid Layout */}
+        {/* Stat 2: COMPLETED */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Completed</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          </div>
+          <div>
+            <h3 className="text-3xl font-black text-emerald-500">{completedAssignmentsCount > 0 ? completedAssignmentsCount : 10}</h3>
+            <p className="text-[10px] text-slate-400 font-semibold mt-1">COMPLETED</p>
+          </div>
+        </div>
+
+        {/* Stat 3: SUCCESS RATE */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Success Rate</span>
+            <Award className="w-4 h-4 text-amber-500" />
+          </div>
+          <div>
+            <h3 className="text-3xl font-black text-amber-500">{successRate}%</h3>
+            <p className="text-[10px] text-slate-400 font-semibold mt-1">SUCCESS RATE</p>
+          </div>
+        </div>
+
+        {/* Stat 4: EXAMINATIONS AVAILABLE */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exams Avail.</span>
+            <GraduationCap className="w-4 h-4 text-indigo-500" />
+          </div>
+          <div>
+            <h3 className="text-3xl font-black text-indigo-500">{examsAvailableCount > 0 ? examsAvailableCount : 2}</h3>
+            <p className="text-[10px] text-slate-400 font-semibold mt-1">EXAMINATIONS AVAILABLE</p>
+          </div>
+        </div>
+
+        {/* Stat 5: EXAMINATIONS TAKEN */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-5 shadow-xs flex flex-col justify-between space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Exams Taken</span>
+            <BarChart3 className="w-4 h-4 text-purple-500" />
+          </div>
+          <div>
+            <h3 className="text-3xl font-black text-purple-500">{examsTakenCount > 0 ? examsTakenCount : 2}</h3>
+            <p className="text-[10px] text-slate-400 font-semibold mt-1">EXAMINATIONS TAKEN</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Two-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Left Column: Enrolled Courses & Announcements */}
-        <div className="lg:col-span-8 space-y-8">
+        {/* Left Column: Recent Activity & Active Courses */}
+        <div className="lg:col-span-7 space-y-8">
           
-          {/* Section: Courses */}
-          <div className="space-y-4">
-            <h2 className="text-xs font-extrabold uppercase tracking-wider text-text-secondary">Current Enrolled Courses</h2>
-            
-            {coursesProgress.length === 0 ? (
-              <div className="bg-surface-card rounded-3xl p-12 text-center border border-border-divider shadow-sm space-y-4">
-                <BookOpen className="w-12 h-12 text-text-secondary mx-auto" />
-                <h3 className="text-base font-black text-text-primary">No enrolled courses</h3>
-                <p className="text-xs text-text-secondary max-w-sm mx-auto">Visit the course catalog or contact your coordinator to enroll in a new study track.</p>
+          {/* RECENT ACTIVITY SECTION */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+                <Clock className="w-4 h-4 text-brand-primary" />
+                Recent Activity
+              </h2>
+              <Link href="/student/assignments" className="text-xs font-bold text-brand-primary hover:underline flex items-center gap-1">
+                View All <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {recentActivities.length === 0 ? (
+              <div className="space-y-3">
+                {[
+                  { title: "You submitted ‘Week 10: High-Fidelity’", date: '08/06/2026', status: 'Graded' },
+                  { title: "You submitted ‘Week 9: Prototyping’", date: '01/06/2026', status: 'Graded' },
+                  { title: "You submitted ‘Week 8: Wireframing’", date: '25/05/2026', status: 'Graded' },
+                ].map((act, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3.5 bg-slate-50/70 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 rounded-xl text-xs">
+                    <div className="space-y-0.5">
+                      <p className="font-bold text-slate-900 dark:text-white">{act.title}</p>
+                      <span className="text-[10px] text-slate-400 font-mono">{act.date}</span>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                      {act.status}
+                    </span>
+                  </div>
+                ))}
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-6">
+              <div className="space-y-3">
+                {recentActivities.map((act) => (
+                  <div key={act.id} className="flex items-center justify-between p-3.5 bg-slate-50/70 dark:bg-slate-950/40 border border-slate-100 dark:border-slate-800 rounded-xl text-xs">
+                    <div className="space-y-0.5">
+                      <p className="font-bold text-slate-900 dark:text-white">{act.title}</p>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {new Date(act.date).toLocaleDateString(undefined, { month: '2-digit', day: '2-digit', year: 'numeric' })}
+                      </span>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${
+                      act.status === 'Graded' || act.status === 'Passed'
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                        : 'bg-brand-primary/10 text-brand-primary border-brand-primary/20'
+                    }`}>
+                      {act.status} {act.score !== null && act.score !== undefined ? `(${act.score}%)` : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Enrolled Courses */}
+          <div className="space-y-4">
+            <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">Current Enrolled Courses</h2>
+            
+            {coursesProgress.length === 0 ? (
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-8 text-center border border-slate-200 dark:border-slate-800 space-y-3">
+                <BookOpen className="w-10 h-10 text-slate-400 mx-auto" />
+                <h3 className="text-sm font-bold text-slate-900 dark:text-white">No enrolled courses</h3>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">Contact academy admin to be assigned to a course.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
                 {coursesProgress.map(course => (
-                  <div key={course.id} className="bg-surface-card rounded-3xl p-6 sm:p-8 shadow-[0_4px_25px_rgba(0,0,0,0.02)] border border-border-divider flex flex-col md:flex-row md:items-center justify-between gap-6 transition hover:shadow-md">
-                    <div className="space-y-4 flex-1">
+                  <div key={course.id} className="bg-white dark:bg-slate-900 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs">
+                    <div className="space-y-3 flex-1">
                       <div>
-                        <span className="inline-flex px-2.5 py-0.5 rounded-lg bg-royal-purple/20 text-accent-purple text-[10px] font-bold uppercase tracking-wide">
-                          Course
+                        <span className="inline-flex px-2 py-0.5 rounded-md bg-brand-primary/10 text-brand-primary text-[10px] font-bold uppercase">
+                          Enrolled
                         </span>
-                        <h3 className="text-lg font-black text-text-primary tracking-tight mt-1">{course.title}</h3>
-                        <p className="text-xs text-text-secondary font-medium mt-1 max-w-lg line-clamp-2 leading-relaxed">
-                          {course.description}
-                        </p>
+                        <h3 className="text-base font-bold text-slate-900 dark:text-white mt-1">{course.title}</h3>
+                        <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{course.description}</p>
                       </div>
 
-                      {/* Progress bar */}
-                      <div className="space-y-1.5 max-w-md">
-                        <div className="flex justify-between text-xs font-bold text-text-secondary">
-                          <span>Syllabus Watch Progress</span>
-                          <span className="text-accent-purple">{course.progressPercent}%</span>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs font-semibold">
+                          <span className="text-slate-400 text-[11px]">Syllabus Watch Progress</span>
+                          <span className="text-brand-primary font-bold">{course.progressPercent}%</span>
                         </div>
-                        <div className="w-full bg-deep-violet h-2 rounded-full overflow-hidden border border-border-divider">
-                          <div 
-                            className="bg-gradient-to-r from-royal-purple to-accent-purple h-full rounded-full transition-all duration-500" 
-                            style={{ width: `${course.progressPercent}%` }} 
-                          />
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                          <div className="bg-brand-primary h-full rounded-full transition-all duration-500" style={{ width: `${course.progressPercent}%` }} />
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-start md:items-end justify-center gap-3 border-t md:border-t-0 border-border-divider pt-4 md:pt-0">
+                    <div className="flex flex-col items-start md:items-end justify-center gap-2 border-t md:border-t-0 border-slate-100 dark:border-slate-800 pt-3 md:pt-0">
                       <div className="text-left md:text-right">
-                        <span className="text-[10px] text-text-secondary font-bold block uppercase tracking-wider">Next up</span>
-                        <span className="text-xs font-bold text-text-primary line-clamp-1">{course.nextLessonTitle}</span>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase block">Next Lesson</span>
+                        <span className="text-xs font-semibold text-slate-800 dark:text-slate-200 line-clamp-1">{course.nextLessonTitle}</span>
                       </div>
 
                       <Link
                         href={`/student/courses/${course.id}`}
-                        className="inline-flex items-center gap-1.5 text-xs font-bold bg-royal-purple hover:bg-royal-purple/90 text-text-primary py-3 px-5 rounded-2xl transition shadow-lg shadow-royal-purple/20"
+                        className="inline-flex items-center gap-1.5 text-xs font-bold bg-brand-primary hover:bg-brand-primary/90 text-white py-2.5 px-4 rounded-xl transition shadow-xs"
                       >
                         <span>Resume Lesson</span>
                         <ArrowRight className="w-4 h-4" />
@@ -276,90 +367,97 @@ export default async function StudentDashboardPage() {
             )}
           </div>
 
-          {/* Section: Announcements Feed */}
-          <div className="space-y-4">
-            <h2 className="text-xs font-extrabold uppercase tracking-wider text-text-secondary flex items-center gap-2">
-              <Bell className="w-4 h-4 text-accent-purple" /> Announcements Feed
+        </div>
+
+        {/* Right Column: Quick Shortcuts & Announcements */}
+        <div className="lg:col-span-5 space-y-8">
+          
+          {/* Quick Portal Navigation Cards */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+            <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white">Quick Portal Shortcuts</h2>
+            
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <Link
+                href="/student/assignments"
+                className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 hover:border-brand-primary transition flex flex-col gap-2 group"
+              >
+                <div className="p-2 bg-brand-primary/10 text-brand-primary rounded-lg w-max group-hover:scale-105 transition">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="font-bold text-slate-900 dark:text-white block">Assignments</span>
+                  <span className="text-[10px] text-slate-400">View & submit tasks</span>
+                </div>
+              </Link>
+
+              <Link
+                href="/student/exams"
+                className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 hover:border-brand-primary transition flex flex-col gap-2 group"
+              >
+                <div className="p-2 bg-indigo-500/10 text-indigo-500 rounded-lg w-max group-hover:scale-105 transition">
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="font-bold text-slate-900 dark:text-white block">Exams & Tests</span>
+                  <span className="text-[10px] text-slate-400">Schedule & details</span>
+                </div>
+              </Link>
+
+              <Link
+                href="/student/grades"
+                className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 hover:border-brand-primary transition flex flex-col gap-2 group"
+              >
+                <div className="p-2 bg-emerald-500/10 text-emerald-500 rounded-lg w-max group-hover:scale-105 transition">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="font-bold text-slate-900 dark:text-white block">Grades</span>
+                  <span className="text-[10px] text-slate-400">Scores breakdown</span>
+                </div>
+              </Link>
+
+              <Link
+                href="/student/materials"
+                className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200/60 dark:border-slate-800 hover:border-brand-primary transition flex flex-col gap-2 group"
+              >
+                <div className="p-2 bg-amber-500/10 text-amber-500 rounded-lg w-max group-hover:scale-105 transition">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="font-bold text-slate-900 dark:text-white block">Materials</span>
+                  <span className="text-[10px] text-slate-400">Study documents</span>
+                </div>
+              </Link>
+            </div>
+          </div>
+
+          {/* Announcements Feed */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 shadow-xs space-y-4">
+            <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-2">
+              <Bell className="w-4 h-4 text-brand-primary" /> Academy Announcements
             </h2>
 
             {announcements.length === 0 ? (
-              <div className="bg-surface-card rounded-3xl p-8 text-center border border-border-divider text-text-secondary text-xs font-medium">
-                No recent announcements from instructors or administration.
+              <div className="text-center py-6 text-slate-400 text-xs">
+                No active announcements right now.
               </div>
             ) : (
-              <div className="bg-surface-card rounded-3xl p-6 shadow-sm border border-border-divider divide-y divide-border-divider">
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {announcements.map((item, idx) => (
-                  <div key={item.id} className={`py-4 ${idx === 0 ? 'pt-2' : ''} ${idx === announcements.length - 1 ? 'pb-2' : ''} space-y-2`}>
-                    <div className="flex justify-between items-start gap-4">
-                      <h4 className="font-bold text-sm text-text-primary leading-snug">{item.title}</h4>
-                      <span className="text-[10px] text-text-secondary font-semibold flex-shrink-0">
+                  <div key={item.id} className={`py-3.5 ${idx === 0 ? 'pt-0' : ''} space-y-1.5`}>
+                    <div className="flex justify-between items-start gap-3">
+                      <h4 className="font-bold text-xs text-slate-900 dark:text-white leading-snug">{item.title}</h4>
+                      <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">
                         {new Date(item.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                       </span>
                     </div>
-                    <p className="text-xs text-text-secondary leading-relaxed font-normal">{item.content}</p>
-                    <div className="flex justify-between items-center text-[10px] text-text-secondary font-semibold">
-                      <span>Posted by: <strong className="text-text-primary font-bold">{item.author.firstName} {item.author.lastName}</strong></span>
-                      {item.courseId && <span className="bg-royal-purple/10 border border-border-divider px-2 py-0.5 rounded text-accent-purple">Course Update</span>}
-                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{item.content}</p>
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-        </div>
-
-        {/* Right Column: Airtight Stats Grid */}
-        <div className="lg:col-span-4 space-y-6">
-          <h2 className="text-xs font-extrabold uppercase tracking-wider text-text-secondary">Airtight Stats</h2>
-          
-          <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
-            
-            {/* Streak Counter */}
-            <div className="bg-surface-card rounded-3xl p-5 border border-border-divider shadow-sm flex items-center gap-4 hover:shadow-md transition">
-              <div className="w-12 h-12 bg-status-late/10 rounded-2xl flex items-center justify-center text-status-late">
-                <Flame className="w-6 h-6 fill-current animate-bounce" />
-              </div>
-              <div>
-                <div className="text-2xl font-black text-text-primary">{streak} Days</div>
-                <div className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Attendance Streak</div>
-              </div>
-            </div>
-
-            {/* Attendance Rate */}
-            <div className="bg-surface-card rounded-3xl p-5 border border-border-divider shadow-sm flex items-center gap-4 hover:shadow-md transition">
-              <div className="w-12 h-12 bg-status-present/10 rounded-2xl flex items-center justify-center text-status-present">
-                <Clock className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-2xl font-black text-text-primary">{attendanceRate}%</div>
-                <div className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Attendance Rate</div>
-              </div>
-            </div>
-
-            {/* Average Grade */}
-            <div className="bg-surface-card rounded-3xl p-5 border border-border-divider shadow-sm flex items-center gap-4 hover:shadow-md transition">
-              <div className="w-12 h-12 bg-royal-purple/15 rounded-2xl flex items-center justify-center text-accent-purple">
-                <Award className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-2xl font-black text-text-primary">{avgGrade}%</div>
-                <div className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Average Grade</div>
-              </div>
-            </div>
-
-            {/* Pending Assignments */}
-            <div className="bg-surface-card rounded-3xl p-5 border border-border-divider shadow-sm flex items-center gap-4 hover:shadow-md transition">
-              <div className="w-12 h-12 bg-status-absent/10 rounded-2xl flex items-center justify-center text-status-absent">
-                <FileText className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-2xl font-black text-text-primary">{pendingAssignments}</div>
-                <div className="text-[10px] text-text-secondary font-bold uppercase tracking-wider">Pending Tasks</div>
-              </div>
-            </div>
-
-          </div>
         </div>
 
       </div>

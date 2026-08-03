@@ -56,3 +56,31 @@ export async function clearSession() {
   const cookieStore = await cookies();
   cookieStore.delete('session');
 }
+
+/**
+ * Generate a student username formatted like: 2026/STU/A026
+ */
+export function generateStudentUsername(prefixNum?: number): string {
+  const year = new Date().getFullYear();
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `${year}/STU/${code}`;
+}
+
+/**
+ * Generate an instructor username formatted like: UGT2026/INSCS/A026 or UGT2026/INSDA/A026
+ */
+export function generateInstructorUsername(deptCode?: string): string {
+  const year = new Date().getFullYear();
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  const cleanDept = deptCode ? deptCode.trim().toUpperCase().replace(/[^A-Z0-9]/g, '') : '';
+  const insPrefix = cleanDept ? `INS${cleanDept}` : 'INS';
+  return `UGT${year}/${insPrefix}/${code}`;
+}
