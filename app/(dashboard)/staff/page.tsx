@@ -1,64 +1,102 @@
 import React from 'react';
-import { requireRole } from '@/lib/require-role';
-import { ShieldCheck, UserCheck, HelpCircle } from 'lucide-react';
+import { getSession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import StaffSidebar from '@/components/staff/StaffSidebar';
+import { UserCheck, Layers, Link2, ShieldCheck, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default async function StaffDashboardPage() {
-  const session = await requireRole(['ADMIN', 'STAFF']);
+export default async function StaffOpsDashboardPage() {
+  const session = await getSession();
+  if (!session || (session.role !== 'ADMIN' && session.role !== 'INSTRUCTOR')) {
+    redirect('/login');
+  }
+
+  const userId = session.userId as string;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    redirect('/login');
+  }
 
   return (
-    <div className="space-y-8 animate-fade-in text-slate-900 dark:text-slate-100">
-      
-      {/* Header */}
-      <div>
-        <h2 className="text-3xl font-extrabold tracking-tight flex items-center gap-3 text-slate-950 dark:text-white">
-          <UserCheck className="w-8 h-8 text-brand-primary" />
-          Staff Portal
-        </h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Staff Dashboard & Resources
-        </p>
+    <div className="min-h-screen bg-[#090D16] flex text-white font-sans">
+      {/* Staff Sidebar */}
+      <div className="w-64 hidden lg:block sticky top-0 h-screen">
+        <StaffSidebar user={{ firstName: user.firstName, lastName: user.lastName, email: user.email }} />
       </div>
 
-      {/* Welcome Widget */}
-      <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 relative overflow-hidden shadow-xl">
-        <div className="absolute top-[-50%] right-[-10%] w-80 h-80 rounded-full bg-brand-primary/30 blur-[100px]" />
-        <div className="relative z-10 max-w-xl space-y-4">
-          <span className="text-[10px] uppercase font-bold tracking-wider text-brand-accent">Staff Dashboard</span>
-          <h4 className="text-2xl font-black">Welcome, {session.user.firstName || session.user.email}!</h4>
-          <p className="text-slate-305 text-sm leading-relaxed">
-            You have successfully authenticated into the staff dashboard. From here, you have limited access to oversee academy settings and manage operational resources. 
-            If you need escalated privileges (such as managing payments or viewing system audit logs), please contact an administrator to update your account role.
-          </p>
-        </div>
-      </div>
-
-      {/* Operations Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-3">
-          <h4 className="font-bold text-base flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-emerald-500" />
-            Your Permissions
-          </h4>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Your role is assigned as <strong className="text-slate-700 dark:text-slate-300 font-semibold">{session.user.role}</strong>. 
-            This grants you view access to staff dashboards, directory indexes, and student attendance, but prevents write operations or database mutations on system-wide settings.
-          </p>
+      {/* Main Viewport */}
+      <main className="flex-1 p-6 sm:p-8 space-y-8 max-w-full overflow-x-hidden">
+        {/* Banner */}
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#1E293B] via-[#0F172A] to-indigo-950 p-8 border border-white/10 shadow-2xl">
+          <div className="relative z-10 space-y-2">
+            <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full font-extrabold uppercase border border-indigo-500/30 tracking-wider">
+              Non-Staff Operations Layer
+            </span>
+            <h1 className="text-3xl font-black tracking-tight text-white mt-2">
+              Platform Operations & HR Portal
+            </h1>
+            <p className="text-xs text-gray-300 max-w-2xl leading-relaxed">
+              Maintains operational tasks such as class section student assigning and staff intake forms. Monitored continuously by the Platform Super Administrator.
+            </p>
+          </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-3">
-          <h4 className="font-bold text-base flex items-center gap-2">
-            <HelpCircle className="w-5 h-5 text-indigo-500" />
-            Support Desk
-          </h4>
-          <p className="text-xs text-slate-500 leading-relaxed">
-            Need support? You can reach out to the developer support channel or log a ticket. 
-            All administrative and operations actions are logged for accountability and quality assurance.
+        {/* Quick Operations Controls */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Link
+            href="/admin/classes"
+            className="p-6 bg-[#0F172A] border border-white/10 hover:border-cyan-500/40 rounded-3xl transition shadow-xl space-y-3 group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-2xl">
+                <Layers className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white group-hover:text-cyan-300 transition">Class Sections & Roster Assigning</h3>
+                <p className="text-xs text-gray-400">Assign enrolled students to Section A, B, or Weekend cohorts</p>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <span className="text-xs text-cyan-400 font-bold flex items-center gap-1">Manage Class Sections <ArrowRight className="w-4 h-4" /></span>
+            </div>
+          </Link>
+
+          <Link
+            href="/staff/onboarding"
+            className="p-6 bg-[#0F172A] border border-white/10 hover:border-teal-500/40 rounded-3xl transition shadow-xl space-y-3 group"
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-teal-500/10 text-teal-400 rounded-2xl">
+                <Link2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white group-hover:text-teal-300 transition">Staff Onboarding Data Intake</h3>
+                <p className="text-xs text-gray-400">Self-service onboarding form link for new instructors and staff</p>
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <span className="text-xs text-teal-400 font-bold flex items-center gap-1">Open Intake Form <ArrowRight className="w-4 h-4" /></span>
+            </div>
+          </Link>
+        </div>
+
+        {/* Notice on Payments */}
+        <div className="p-5 rounded-2xl bg-white/5 border border-white/10 text-xs text-gray-300 space-y-1">
+          <p className="font-bold text-white flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-amber-400" /> Platform Security Policy Notice
+          </p>
+          <p className="text-[11px] text-gray-400">
+            Payment management and financial settlements are excluded from the ops portal and restricted exclusively to Super Admin oversight.
           </p>
         </div>
-      </div>
-
+      </main>
     </div>
   );
 }

@@ -1,11 +1,11 @@
 import React from 'react';
 import { requireRole } from '@/lib/require-role';
-import AdminStudentDirectory from '@/components/admin/AdminStudentDirectory';
-import { GraduationCap } from 'lucide-react';
+import AdminInstructorDirectory from '@/components/admin/AdminInstructorDirectory';
+import { Users } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminStudentsPage() {
+export default async function AdminInstructorsPage() {
   await requireRole(['ADMIN']);
 
   return (
@@ -13,16 +13,16 @@ export default async function AdminStudentsPage() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4 border-b border-white/10">
         <div>
           <h1 className="text-2xl font-black tracking-tight flex items-center gap-3 text-white">
-            <GraduationCap className="w-7 h-7 text-emerald-400" />
-            Every Enrolled Student Directory
+            <Users className="w-7 h-7 text-purple-400" />
+            Instructors & Staff Directory
           </h1>
           <p className="text-xs text-gray-400 mt-1">
-            Search every enrolled student across all cohorts. Inspect student profile drawers, message students, or override attendance directly.
+            Provision instructor accounts, format department IDs, and manage staff archiving on file.
           </p>
         </div>
       </div>
 
-      <AdminStudentDirectory />
+      <AdminInstructorDirectory />
     </div>
   );
 }
