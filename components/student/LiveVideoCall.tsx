@@ -15,7 +15,15 @@ import {
   Hand,
   Volume2,
   Sparkles,
-  PlayCircle
+  CheckCircle2,
+  AlertTriangle,
+  FileText,
+  Clock,
+  Download,
+  ShieldAlert,
+  ThumbsUp,
+  Flame,
+  Heart
 } from 'lucide-react';
 
 interface LiveVideoCallProps {
@@ -24,41 +32,48 @@ interface LiveVideoCallProps {
   user: {
     firstName: string;
     lastName: string;
+    email?: string;
   };
+  meetingStartTime?: Date;
 }
 
-export default function LiveVideoCall({ courseTitle, onLeave, user }: LiveVideoCallProps) {
+export default function LiveVideoCall({ courseTitle, onLeave, user, meetingStartTime }: LiveVideoCallProps) {
   const [micActive, setMicActive] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [activeSidebar, setActiveSidebar] = useState<'chat' | 'people' | null>(null);
-  
-  // Real-time transcription captions
+  const [activeSidebar, setActiveSidebar] = useState<'chat' | 'people' | 'transcript' | null>(null);
+
+  // Link Expiration state (20 minute expiration rule)
+  const [isLinkExpired, setIsLinkExpired] = useState(false);
+
+  // Roll Call state (must click to confirm attendance and unlock post-class transcript)
+  const [hasMarkedRollCall, setHasMarkedRollCall] = useState(false);
+  const [rollCallWarning, setRollCallWarning] = useState(false);
+
+  // Floating reactions
+  const [activeReaction, setActiveReaction] = useState<string | null>(null);
+
+  // Transcripts & Chat
   const [transcripts, setTranscripts] = useState<Array<{ speaker: string; text: string; time: string }>>([
-    { speaker: 'Instructor Ada', text: 'Welcome cohort! Today we are learning how to build highly responsive, dark-themed applications.', time: '10:00' },
+    { speaker: 'Instructor Ada', text: 'Welcome cohort! Today we are covering advanced security architecture & threat modeling.', time: '10:00 AM' },
+    { speaker: 'Instructor Ada', text: 'Ensure you click the Roll Call button below to mark your live attendance.', time: '10:02 AM' },
   ]);
-  const [currentTranscription, setCurrentTranscription] = useState('');
-  
-  // Chat messages
+
   const [chatMessages, setChatMessages] = useState<Array<{ sender: string; text: string; time: string }>>([
-    { sender: 'Instructor Ada', text: 'Please ensure you have Node.js and SQLite running locally.', time: '10:01' },
-    { sender: 'Grace Hopper', text: 'Got it, compilation runs clean on my branch!', time: '10:02' },
+    { sender: 'Instructor Ada', text: 'Welcome everyone! Roll call is now open.', time: '10:01 AM' },
   ]);
   const [newMessage, setNewMessage] = useState('');
-  
-  // Other call participants
+
   const [participants] = useState([
     { name: 'Instructor Ada', role: 'Instructor', active: true, initial: 'A', mic: true, cam: true },
     { name: 'Grace Hopper', role: 'Student', active: false, initial: 'G', mic: true, cam: false },
     { name: 'Alan Turing', role: 'Student', active: false, initial: 'T', mic: false, cam: true },
-    { name: 'Margaret Hamilton', role: 'Student', active: false, initial: 'H', mic: true, cam: true },
   ]);
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const recognitionRef = useRef<any | null>(null);
 
-  // 1. Manage Webcam stream
+  // 1. Manage Webcam
   useEffect(() => {
     if (cameraActive) {
       navigator.mediaDevices.getUserMedia({ video: true, audio: false })
@@ -68,138 +83,19 @@ export default function LiveVideoCall({ courseTitle, onLeave, user }: LiveVideoC
             localVideoRef.current.srcObject = stream;
           }
         })
-        .catch((err) => {
-          console.warn('Camera access denied or unavailable:', err.message);
-          setCameraActive(false);
-        });
+        .catch(() => setCameraActive(false));
     } else {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = null;
-      }
     }
-
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
   }, [cameraActive]);
-
-  // 2. Manage Web Speech API for voice-to-text transcription
-  useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onresult = (event: any) => {
-        let interimTranscript = '';
-        let finalTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript;
-          } else {
-            interimTranscript += event.results[i][0].transcript;
-          }
-        }
-
-        if (finalTranscript) {
-          const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          setTranscripts((prev) => [
-            ...prev,
-            { speaker: `${user.firstName} (You)`, text: finalTranscript, time: nowStr }
-          ]);
-          setCurrentTranscription('');
-        } else {
-          setCurrentTranscription(interimTranscript);
-        }
-      };
-
-      recognition.onerror = (err: any) => {
-        console.warn('Speech recognition error:', err.error);
-        if (err.error === 'not-allowed') {
-          setMicActive(false);
-        }
-      };
-
-      recognition.onend = () => {
-        // Automatically restart if mic is still active
-        if (micActive) {
-          try {
-            recognition.start();
-          } catch (e) {}
-        }
-      };
-
-      recognitionRef.current = recognition;
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    };
-  }, [user.firstName]);
-
-  // Handle Speech Recognition Toggle
-  useEffect(() => {
-    if (!recognitionRef.current) return;
-
-    if (micActive) {
-      try {
-        recognitionRef.current.start();
-      } catch (e) {}
-    } else {
-      try {
-        recognitionRef.current.stop();
-        setCurrentTranscription('');
-      } catch (e) {}
-    }
-  }, [micActive]);
-
-  // 3. Simulate Instructor Speech captions and messages to keep page dynamic
-  useEffect(() => {
-    const lectureDialogues = [
-      "Now, let's explore how CSS variables allow us to swap layout color presets cleanly.",
-      "Google Meet utilizes WebRTC coordinates to establish direct audio-video peer connections.",
-      "If we toggle screen sharing, the stream shifts to a secondary canvas window.",
-      "I have uploaded the new React exercises. Make sure to download modules in the materials directory.",
-      "Are there any questions about how the speech-to-text recognition API records audio formats?",
-      "Perfect. We will now deploy the build server to staging and run tests."
-    ];
-
-    let dialogueIdx = 0;
-    const interval = setInterval(() => {
-      if (dialogueIdx >= lectureDialogues.length) dialogueIdx = 0;
-      
-      const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const dialogue = lectureDialogues[dialogueIdx++];
-      
-      // Add simulated instructor transcription caption
-      setTranscripts((prev) => [
-        ...prev,
-        { speaker: 'Instructor Ada', text: dialogue, time: nowStr }
-      ]);
-
-      // Randomly post to chat as well
-      if (Math.random() > 0.5) {
-        setChatMessages((prev) => [
-          ...prev,
-          { sender: 'Instructor Ada', text: `Lecture note: ${dialogue}`, time: nowStr }
-        ]);
-      }
-    }, 15000); // simulated lecture updates every 15s
-
-    return () => clearInterval(interval);
-  }, []);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,67 +109,144 @@ export default function LiveVideoCall({ courseTitle, onLeave, user }: LiveVideoC
     setNewMessage('');
   };
 
+  const handleRollCallClick = async () => {
+    setHasMarkedRollCall(true);
+    setRollCallWarning(false);
+    // Simulate updating instructor attendance ledger
+    try {
+      await fetch('/api/student/attendance/check-in', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'PRESENT', courseTitle }),
+      });
+    } catch {
+      // fallback
+    }
+  };
+
+  const sendReaction = (emoji: string) => {
+    setActiveReaction(emoji);
+    setTimeout(() => setActiveReaction(null), 2500);
+  };
+
+  const downloadTranscript = () => {
+    if (!hasMarkedRollCall) {
+      setRollCallWarning(true);
+      return;
+    }
+    const textContent = transcripts
+      .map((t) => `[${t.time}] ${t.speaker}: ${t.text}`)
+      .join('\n');
+    
+    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Lecture_Transcript_${courseTitle.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (isLinkExpired) {
+    return (
+      <div className="bg-[#0F172A] border border-red-900/50 rounded-3xl p-8 text-center space-y-4 shadow-2xl">
+        <div className="mx-auto w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400">
+          <Clock className="w-6 h-6" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-lg font-black text-white">Live Class Link Expired</h3>
+          <p className="text-xs text-gray-400 max-w-md mx-auto">
+            This live lecture link expired 20 minutes after start time. Please contact your instructor if you require a reschedule.
+          </p>
+        </div>
+        <button
+          onClick={onLeave}
+          className="px-6 py-2.5 bg-[#2563EB] hover:bg-blue-600 text-white text-xs font-bold rounded-xl transition"
+        >
+          Return to Timetable
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col lg:flex-row bg-[#0D0B14] border border-border-divider rounded-3xl overflow-hidden h-[600px] w-full text-text-primary shadow-2xl relative">
+    <div className="flex flex-col lg:flex-row bg-[#0B0F19] border border-white/10 rounded-3xl overflow-hidden min-h-[580px] w-full text-white shadow-2xl relative">
       
-      {/* LEFT: Main Meeting View */}
-      <div className="flex-1 flex flex-col justify-between p-4 bg-deep-violet relative overflow-hidden">
+      {/* Floating Reaction Animation */}
+      {activeReaction && (
+        <div className="absolute top-1/3 left-1/2 transform -translate-x-1/2 z-50 animate-bounce text-5xl">
+          {activeReaction}
+        </div>
+      )}
+
+      {/* LEFT: Main Meeting Room View */}
+      <div className="flex-1 flex flex-col justify-between p-4 bg-[#0F172A] relative overflow-hidden">
         
-        {/* Meeting Header Info */}
-        <div className="flex justify-between items-center z-10 bg-black/40 backdrop-blur-md px-4 py-2 rounded-2xl border border-border-divider/50">
+        {/* Header Bar */}
+        <div className="flex justify-between items-center z-10 bg-black/40 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/10">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-status-absent animate-pulse" />
-            <span className="text-xs font-black uppercase tracking-wider">{courseTitle} — Live Call</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-white tracking-wide">{courseTitle} — Live Lecture</span>
           </div>
-          <span className="text-[10px] bg-royal-purple/35 text-accent-purple px-2 py-0.5 rounded font-bold uppercase tracking-wider border border-royal-purple/20">
-            Cohort 1
-          </span>
+
+          {/* Roll Call Attendance Button */}
+          <div className="flex items-center gap-2">
+            {hasMarkedRollCall ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Present (Roll Call Complete)
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRollCallClick}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-[11px] font-extrabold uppercase bg-amber-500 hover:bg-amber-400 text-slate-950 transition shadow-lg animate-pulse"
+                title="Click to mark your presence on instructor roll call"
+              >
+                <CheckCircle2 className="w-4 h-4" /> Click Roll Call Ticket
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Video Grid */}
-        <div className="flex-1 grid grid-cols-2 gap-3 my-4 items-center justify-center min-h-[300px]">
-          
-          {/* Box 1: Instructor Feed or Slide Presentation */}
-          <div className="bg-surface-card border border-border-divider rounded-2xl h-full flex flex-col items-center justify-center relative overflow-hidden group shadow-lg">
+        {/* Video Feeds Grid */}
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3 my-4 items-center justify-center min-h-[280px]">
+          {/* Instructor Feed / Screen Share */}
+          <div className="bg-[#1E293B] border border-white/10 rounded-2xl h-full flex flex-col items-center justify-center relative overflow-hidden shadow-lg">
             {isScreenSharing ? (
-              <div className="w-full h-full flex flex-col justify-between p-4 bg-slate-900 font-mono text-[9px] text-emerald-450 leading-relaxed overflow-hidden">
-                <div className="flex justify-between items-center text-slate-400 border-b border-slate-800 pb-2 mb-2">
-                  <span className="flex items-center gap-1"><Monitor className="w-3.5 h-3.5 text-royal-gold" /> Screen Sharing: slides.pdf</span>
+              <div className="w-full h-full flex flex-col justify-between p-4 bg-slate-950 font-mono text-[10px] text-emerald-400 leading-relaxed overflow-hidden">
+                <div className="flex justify-between items-center text-gray-400 border-b border-white/10 pb-2">
+                  <span className="flex items-center gap-1"><Monitor className="w-3.5 h-3.5 text-blue-400" /> Screen Presentation: Lecture_Outline.py</span>
                   <span>Ada Lovelace</span>
                 </div>
-                <div className="space-y-1.5 opacity-90">
-                  <p className="text-royal-gold">// React Component Example</p>
-                  <p>const LiveLecture = &#123; courseId &#125; =&gt; &#123;</p>
-                  <p>&nbsp;&nbsp;const [captions, setCaptions] = useState([]);</p>
-                  <p>&nbsp;&nbsp;useEffect(() =&gt; &#123;</p>
-                  <p>&nbsp;&nbsp;&nbsp;&nbsp;const speech = new SpeechRecognition();</p>
-                  <p>&nbsp;&nbsp;&nbsp;&nbsp;speech.start();</p>
-                  <p>&nbsp;&nbsp;&#125;, []);</p>
-                  <p>&nbsp;&nbsp;return &lt;Meet feeds=&#123;captions&#125; /&gt;</p>
-                  <p>&#125;</p>
+                <div className="space-y-1 opacity-90 py-2">
+                  <p className="text-blue-400"># UGET Academy — Threat Analysis Code</p>
+                  <p>def evaluate_threat_vector(payload):</p>
+                  <p>&nbsp;&nbsp;&nbsp;&nbsp;if "EXPLOIT" in payload:</p>
+                  <p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;return "SEVERITY_HIGH"</p>
+                  <p>&nbsp;&nbsp;&nbsp;&nbsp;return "CLEAN"</p>
                 </div>
-                <span className="text-[8px] bg-royal-gold/15 text-royal-gold px-2 py-0.5 rounded w-fit self-end font-bold border border-royal-gold/25 mt-2">
-                  Presentation view
+                <span className="text-[9px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded font-bold border border-blue-500/30 w-fit self-end">
+                  Instructor Screen Presentation
                 </span>
               </div>
             ) : (
               <div className="flex flex-col items-center text-center p-4">
-                <div className="w-16 h-16 rounded-full bg-royal-purple/30 text-accent-purple flex items-center justify-center text-xl font-bold border border-royal-purple/20 shadow-md">
+                <div className="w-16 h-16 rounded-full bg-blue-600/30 text-blue-400 flex items-center justify-center text-xl font-black border border-blue-500/30 shadow-md">
                   A
                 </div>
-                <span className="text-xs font-bold mt-3 block">Instructor Ada</span>
-                <span className="text-[9px] text-status-present flex items-center gap-1 mt-1 font-semibold uppercase tracking-wider">
+                <span className="text-xs font-bold mt-3 block text-white">Instructor Ada</span>
+                <span className="text-[9px] text-emerald-400 flex items-center gap-1 mt-1 font-semibold uppercase">
                   <Volume2 className="w-3.5 h-3.5 animate-pulse" /> Speaking...
                 </span>
               </div>
             )}
-            <span className="absolute bottom-2 left-2 bg-black/60 text-[9px] px-2.5 py-1 rounded-lg font-bold border border-white/5 backdrop-blur-md">
-              Instructor Ada
+            <span className="absolute bottom-2 left-2 bg-black/60 text-[9px] px-2.5 py-1 rounded-lg font-bold border border-white/10 backdrop-blur-md">
+              Instructor Ada (Host)
             </span>
           </div>
 
-          {/* Box 2: Student Local Feed */}
-          <div className="bg-surface-card border border-border-divider rounded-2xl h-full flex flex-col items-center justify-center relative overflow-hidden group shadow-lg">
+          {/* Student Local Feed */}
+          <div className="bg-[#1E293B] border border-white/10 rounded-2xl h-full flex flex-col items-center justify-center relative overflow-hidden shadow-lg">
             {cameraActive ? (
               <video 
                 ref={localVideoRef} 
@@ -284,229 +257,175 @@ export default function LiveVideoCall({ courseTitle, onLeave, user }: LiveVideoC
               />
             ) : (
               <div className="flex flex-col items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-accent-purple/20 text-accent-purple flex items-center justify-center text-xl font-bold border border-accent-purple/20 shadow-md">
+                <div className="w-16 h-16 rounded-full bg-purple-600/30 text-purple-400 flex items-center justify-center text-xl font-black border border-purple-500/30 shadow-md">
                   {user.firstName[0]}
                 </div>
-                <span className="text-xs font-bold mt-3 block">{user.firstName} (You)</span>
+                <span className="text-xs font-bold mt-3 block text-white">{user.firstName} (You)</span>
               </div>
             )}
-            <span className="absolute bottom-2 left-2 bg-black/60 text-[9px] px-2.5 py-1 rounded-lg font-bold border border-white/5 backdrop-blur-md flex items-center gap-1.5">
-              {!micActive && <MicOff className="w-3 h-3 text-status-absent" />}
+            <span className="absolute bottom-2 left-2 bg-black/60 text-[9px] px-2.5 py-1 rounded-lg font-bold border border-white/10 backdrop-blur-md flex items-center gap-1.5">
+              {!micActive && <MicOff className="w-3 h-3 text-red-400" />}
               {user.firstName} (You)
             </span>
           </div>
-
         </div>
 
-        {/* Live voice-to-text Captions overlay */}
-        <div className="bg-black/60 backdrop-blur-md border border-border-divider/50 rounded-2xl p-3 min-h-[55px] max-h-[85px] overflow-y-auto mb-3 flex flex-col justify-end text-center z-10 select-none">
-          {currentTranscription ? (
-            <p className="text-xs text-text-primary leading-relaxed font-semibold italic">
-              <span className="text-accent-purple font-extrabold not-italic mr-1">{user.firstName} (You):</span> 
-              "{currentTranscription}..."
-            </p>
-          ) : transcripts.length > 0 ? (
-            <p className="text-xs text-text-primary leading-relaxed font-semibold">
-              <span className="text-royal-gold font-extrabold mr-1">
-                {transcripts[transcripts.length - 1].speaker}:
-              </span>
-              "{transcripts[transcripts.length - 1].text}"
-            </p>
-          ) : (
-            <p className="text-[10px] text-text-secondary uppercase tracking-widest font-black flex items-center justify-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-royal-gold" /> Real-time lecture transcription active
-            </p>
-          )}
+        {/* Live Speech Captions Bar */}
+        <div className="bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl p-3 min-h-[50px] flex items-center justify-center text-center mb-3">
+          <p className="text-xs text-white font-semibold">
+            <span className="text-blue-400 font-extrabold mr-1">Instructor Ada:</span> 
+            "{transcripts[transcripts.length - 1].text}"
+          </p>
         </div>
 
-        {/* Meet Controls footer */}
-        <div className="flex justify-center items-center gap-3 py-1.5 z-10">
-          <button
-            onClick={() => setMicActive(!micActive)}
-            className={`p-3 rounded-2xl border transition duration-150 cursor-pointer shadow-md ${
-              micActive 
-                ? 'bg-royal-purple/20 border-royal-purple text-accent-purple hover:bg-royal-purple/35' 
-                : 'bg-status-absent/15 border-status-absent/35 text-status-absent hover:bg-status-absent/25'
-            }`}
-            title={micActive ? 'Mute Microphone' : 'Unmute Microphone'}
-          >
-            {micActive ? <Mic className="w-4.5 h-4.5" /> : <MicOff className="w-4.5 h-4.5" />}
-          </button>
+        {/* Reaction Controls & Toolbar */}
+        <div className="flex justify-between items-center border-t border-white/10 pt-3">
+          {/* Reaction Bar */}
+          <div className="flex items-center gap-1.5">
+            <button type="button" onClick={() => sendReaction('👍')} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs transition">👍</button>
+            <button type="button" onClick={() => sendReaction('👏')} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs transition">👏</button>
+            <button type="button" onClick={() => sendReaction('🔥')} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs transition">🔥</button>
+            <button type="button" onClick={() => sendReaction('❤️')} className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-xs transition">❤️</button>
+          </div>
 
-          <button
-            onClick={() => setCameraActive(!cameraActive)}
-            className={`p-3 rounded-2xl border transition duration-150 cursor-pointer shadow-md ${
-              cameraActive 
-                ? 'bg-royal-purple/20 border-royal-purple text-accent-purple hover:bg-royal-purple/35' 
-                : 'bg-status-absent/15 border-status-absent/35 text-status-absent hover:bg-status-absent/25'
-            }`}
-            title={cameraActive ? 'Disable Camera' : 'Enable Camera'}
-          >
-            {cameraActive ? <Video className="w-4.5 h-4.5" /> : <VideoOff className="w-4.5 h-4.5" />}
-          </button>
+          {/* Core Controls */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMicActive(!micActive)}
+              className={`p-3 rounded-xl border transition ${
+                micActive ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-red-500/20 border-red-500/40 text-red-400'
+              }`}
+            >
+              {micActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+            </button>
 
-          <button
-            onClick={() => setIsScreenSharing(!isScreenSharing)}
-            className={`p-3 rounded-2xl border transition duration-150 cursor-pointer shadow-md ${
-              isScreenSharing 
-                ? 'bg-royal-purple/35 border-royal-purple text-royal-gold hover:bg-royal-purple/50' 
-                : 'bg-surface-card border-border-divider text-text-secondary hover:text-text-primary hover:bg-royal-purple/10'
-            }`}
-            title="Mock Screen Share"
-          >
-            <Monitor className="w-4.5 h-4.5" />
-          </button>
+            <button
+              onClick={() => setCameraActive(!cameraActive)}
+              className={`p-3 rounded-xl border transition ${
+                cameraActive ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-red-500/20 border-red-500/40 text-red-400'
+              }`}
+            >
+              {cameraActive ? <Video className="w-4 h-4" /> : <VideoOff className="w-4 h-4" />}
+            </button>
 
-          <button
-            className="p-3 rounded-2xl border border-border-divider bg-surface-card text-text-secondary hover:text-text-primary hover:bg-royal-purple/10 transition duration-150 cursor-pointer shadow-md"
-            title="Raise Hand"
-          >
-            <Hand className="w-4.5 h-4.5" />
-          </button>
+            <button
+              onClick={() => setIsScreenSharing(!isScreenSharing)}
+              className={`p-3 rounded-xl border transition ${
+                isScreenSharing ? 'bg-amber-500/20 border-amber-500 text-amber-300' : 'bg-white/5 border-white/10 text-gray-300 hover:text-white'
+              }`}
+            >
+              <Monitor className="w-4 h-4" />
+            </button>
 
-          <div className="h-6 w-px bg-border-divider mx-1" />
+            <button
+              onClick={() => setActiveSidebar(activeSidebar === 'transcript' ? null : 'transcript')}
+              className={`p-3 rounded-xl border transition ${
+                activeSidebar === 'transcript' ? 'bg-purple-600/20 border-purple-500 text-purple-300' : 'bg-white/5 border-white/10 text-gray-300 hover:text-white'
+              }`}
+              title="Lecture Transcripts"
+            >
+              <FileText className="w-4 h-4" />
+            </button>
 
-          {/* Toggle Sidebar buttons */}
-          <button
-            onClick={() => setActiveSidebar(activeSidebar === 'chat' ? null : 'chat')}
-            className={`p-3 rounded-2xl border transition duration-150 cursor-pointer relative shadow-md ${
-              activeSidebar === 'chat'
-                ? 'bg-royal-purple/20 border-royal-purple text-accent-purple'
-                : 'bg-surface-card border-border-divider text-text-secondary hover:text-text-primary hover:bg-royal-purple/10'
-            }`}
-            title="Meeting Chat"
-          >
-            <MessageSquare className="w-4.5 h-4.5" />
-            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-status-excused" />
-          </button>
+            <button
+              onClick={() => setActiveSidebar(activeSidebar === 'chat' ? null : 'chat')}
+              className={`p-3 rounded-xl border transition ${
+                activeSidebar === 'chat' ? 'bg-blue-600/20 border-blue-500 text-blue-300' : 'bg-white/5 border-white/10 text-gray-300 hover:text-white'
+              }`}
+              title="Lecture Chat"
+            >
+              <MessageSquare className="w-4 h-4" />
+            </button>
 
-          <button
-            onClick={() => setActiveSidebar(activeSidebar === 'people' ? null : 'people')}
-            className={`p-3 rounded-2xl border transition duration-150 cursor-pointer shadow-md ${
-              activeSidebar === 'people'
-                ? 'bg-royal-purple/20 border-royal-purple text-accent-purple'
-                : 'bg-surface-card border-border-divider text-text-secondary hover:text-text-primary hover:bg-royal-purple/10'
-            }`}
-            title="Show Participants"
-          >
-            <Users className="w-4.5 h-4.5" />
-          </button>
-
-          <button
-            onClick={onLeave}
-            className="p-3 rounded-2xl bg-status-absent hover:bg-status-absent/90 text-white transition duration-150 cursor-pointer shadow-md flex items-center gap-1 px-4 ml-2"
-            title="Leave Meeting"
-          >
-            <PhoneOff className="w-4.5 h-4.5" />
-            <span className="text-[10px] font-extrabold uppercase tracking-wide hidden sm:inline">Leave</span>
-          </button>
+            <button
+              onClick={onLeave}
+              className="p-3 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-xs transition flex items-center gap-1.5 ml-2"
+            >
+              <PhoneOff className="w-4 h-4" /> Leave Call
+            </button>
+          </div>
         </div>
 
       </div>
 
-      {/* RIGHT: Meeting Sidebar (Chat or Participants) */}
+      {/* RIGHT SIDEBAR: Chat / People / Transcripts */}
       {activeSidebar && (
-        <div className="w-full lg:w-[280px] bg-surface-card border-t lg:border-t-0 lg:border-l border-border-divider flex flex-col h-[300px] lg:h-full z-20 animate-slide-in">
-          
-          {/* Sidebar Header */}
-          <div className="p-4 border-b border-border-divider flex items-center justify-between">
-            <h4 className="text-xs font-black uppercase tracking-wider flex items-center gap-2">
-              {activeSidebar === 'chat' ? (
-                <>
-                  <MessageSquare className="w-4 h-4 text-accent-purple" />
-                  <span>Class Chat</span>
-                </>
-              ) : (
-                <>
-                  <Users className="w-4 h-4 text-accent-purple" />
-                  <span>Call Members ({participants.length + 1})</span>
-                </>
-              )}
+        <div className="w-full lg:w-80 bg-[#0F172A] border-t lg:border-t-0 lg:border-l border-white/10 flex flex-col h-auto lg:h-full z-20">
+          <div className="p-4 border-b border-white/10 flex items-center justify-between">
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+              {activeSidebar === 'chat' && <><MessageSquare className="w-4 h-4 text-blue-400" /> Class Chat</>}
+              {activeSidebar === 'people' && <><Users className="w-4 h-4 text-blue-400" /> Call Attendees</>}
+              {activeSidebar === 'transcript' && <><FileText className="w-4 h-4 text-purple-400" /> Live Transcript</>}
             </h4>
-            <button 
-              onClick={() => setActiveSidebar(null)}
-              className="text-[10px] text-text-secondary hover:text-text-primary font-bold cursor-pointer"
-            >
-              Close
-            </button>
+            <button onClick={() => setActiveSidebar(null)} className="text-xs text-gray-400 hover:text-white">Close</button>
           </div>
 
-          {/* Chat Tab Panel */}
-          {activeSidebar === 'chat' && (
-            <div className="flex-1 flex flex-col justify-between overflow-hidden">
-              <div className="flex-grow p-4 space-y-3.5 overflow-y-auto max-h-[350px] scrollbar-thin">
-                {chatMessages.map((msg, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black text-accent-purple">{msg.sender}</span>
-                      <span className="text-[8px] text-text-secondary">{msg.time}</span>
+          {/* TRANSCRIPT SIDEBAR TAB */}
+          {activeSidebar === 'transcript' && (
+            <div className="flex-1 p-4 space-y-4 flex flex-col justify-between overflow-y-auto">
+              {rollCallWarning && !hasMarkedRollCall && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-start gap-2">
+                  <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
+                  <span>You must click <strong>Roll Call</strong> ticket to download post-class transcripts.</span>
+                </div>
+              )}
+
+              <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar">
+                {transcripts.map((t, i) => (
+                  <div key={i} className="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-1 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-purple-300">{t.speaker}</span>
+                      <span className="text-[9px] text-gray-400 font-mono">{t.time}</span>
                     </div>
-                    <p className="text-[11px] text-text-primary leading-relaxed bg-[#150E27]/40 border border-border-divider/30 p-2.5 rounded-2xl">
-                      {msg.text}
-                    </p>
+                    <p className="text-gray-300 text-[11px] leading-relaxed">{t.text}</p>
                   </div>
                 ))}
               </div>
 
-              <form onSubmit={handleSendMessage} className="p-3 border-t border-border-divider flex items-center gap-2">
+              <button
+                type="button"
+                onClick={downloadTranscript}
+                className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition ${
+                  hasMarkedRollCall
+                    ? 'bg-purple-600 hover:bg-purple-500 text-white shadow-lg'
+                    : 'bg-white/10 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                <Download className="w-4 h-4" />
+                {hasMarkedRollCall ? 'Download Full Transcript (.txt)' : 'Roll Call Required to Download'}
+              </button>
+            </div>
+          )}
+
+          {/* CHAT TAB */}
+          {activeSidebar === 'chat' && (
+            <div className="flex-1 flex flex-col justify-between p-4 overflow-hidden">
+              <div className="space-y-3 overflow-y-auto flex-1 custom-scrollbar pr-1">
+                {chatMessages.map((m, i) => (
+                  <div key={i} className="space-y-1">
+                    <div className="flex justify-between text-[10px]">
+                      <span className="font-bold text-blue-300">{m.sender}</span>
+                      <span className="text-gray-500 font-mono">{m.time}</span>
+                    </div>
+                    <p className="text-xs text-gray-200 bg-white/5 p-2.5 rounded-xl border border-white/10">{m.text}</p>
+                  </div>
+                ))}
+              </div>
+
+              <form onSubmit={handleSendMessage} className="pt-3 border-t border-white/10 flex gap-2">
                 <input
                   type="text"
-                  placeholder="Ask a question..."
+                  placeholder="Type a message..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  className="flex-1 rounded-xl border border-border-divider bg-deep-violet px-3 py-2 text-[11px] focus:outline-none focus:border-royal-purple"
+                  className="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-gray-500 focus:outline-none"
                 />
-                <button
-                  type="submit"
-                  className="p-2.5 rounded-xl bg-royal-purple hover:bg-royal-purple/95 text-white flex-shrink-0 cursor-pointer"
-                >
+                <button type="submit" className="p-2 bg-[#2563EB] hover:bg-blue-600 text-white rounded-xl">
                   <Send className="w-4 h-4" />
                 </button>
               </form>
             </div>
           )}
-
-          {/* Participants Tab Panel */}
-          {activeSidebar === 'people' && (
-            <div className="flex-grow p-4 space-y-3.5 overflow-y-auto scrollbar-thin">
-              {/* Local user first */}
-              <div className="flex items-center justify-between border-b border-border-divider pb-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-royal-purple/20 text-accent-purple flex items-center justify-center text-xs font-bold">
-                    {user.firstName[0]}
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold block">{user.firstName} (You)</span>
-                    <span className="text-[8px] text-text-secondary uppercase font-bold tracking-wider">Student</span>
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  {micActive ? <Mic className="w-3.5 h-3.5 text-text-secondary" /> : <MicOff className="w-3.5 h-3.5 text-status-absent" />}
-                  {cameraActive ? <Video className="w-3.5 h-3.5 text-text-secondary" /> : <VideoOff className="w-3.5 h-3.5 text-status-absent" />}
-                </div>
-              </div>
-
-              {/* Other members */}
-              {participants.map((person, idx) => (
-                <div key={idx} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-surface-card border border-border-divider text-text-secondary flex items-center justify-center text-xs font-bold uppercase">
-                      {person.initial}
-                    </div>
-                    <div>
-                      <span className="text-[11px] font-bold block">{person.name}</span>
-                      <span className="text-[8px] text-text-secondary uppercase font-bold tracking-wider">{person.role}</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    {person.mic ? <Mic className="w-3.5 h-3.5 text-text-secondary" /> : <MicOff className="w-3.5 h-3.5 text-status-absent" />}
-                    {person.cam ? <Video className="w-3.5 h-3.5 text-text-secondary" /> : <VideoOff className="w-3.5 h-3.5 text-status-absent" />}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
         </div>
       )}
 
