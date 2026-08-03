@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { comparePassword, createSession } from '@/lib/auth';
+import { comparePassword, hashPassword, createSession } from '@/lib/auth';
 import { checkLoginRateLimit } from '@/lib/rate-limit';
 
 const loginSchema = z.object({
@@ -10,6 +10,7 @@ const loginSchema = z.object({
 });
 
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
+const ADMIN_GMAIL = 'ugettechnologies@gmail.com';
 
 export async function POST(request: Request) {
   const ip = request.headers.get('x-forwarded-for') || '127.0.0.1';
@@ -37,24 +38,43 @@ export async function POST(request: Request) {
     }
 
     const { email: inputIdentifier, password } = result.data;
-    const cleanIdentifier = inputIdentifier.trim();
+    const cleanIdentifier = inputIdentifier.trim().toLowerCase();
 
-    // Query DB by Email or Username (e.g. 374/CO1/A026 / 2026/STU/A026)
-    // Falls back to email-only if username column hasn't been migrated yet
+    // Auto-provision Super Admin account for ugettechnologies@gmail.com if missing
+    if (cleanIdentifier === ADMIN_GMAIL) {
+      const existingAdmin = await prisma.user.findUnique({
+        where: { email: ADMIN_GMAIL },
+      });
+
+      if (!existingAdmin) {
+        const passwordHash = await hashPassword(password);
+        await prisma.user.create({
+          data: {
+            email: ADMIN_GMAIL,
+            firstName: 'UGET',
+            lastName: 'Admin',
+            passwordHash,
+            role: 'ADMIN',
+            emailVerified: true,
+          },
+        });
+      }
+    }
+
+    // Query DB by Email or Username
     let user;
     try {
       user = await prisma.user.findFirst({
         where: {
           OR: [
-            { email: cleanIdentifier.toLowerCase() },
-            { username: cleanIdentifier },
+            { email: cleanIdentifier },
+            { username: inputIdentifier.trim() },
           ],
         },
       });
     } catch {
-      // Fallback: username column may not exist in DB yet
       user = await prisma.user.findUnique({
-        where: { email: cleanIdentifier.toLowerCase() },
+        where: { email: cleanIdentifier },
       });
     }
 
@@ -65,17 +85,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check Approval Status (only when status field exists in DB)
-    if ((user as any).status === 'PENDING_APPROVAL') {
+    // Strict Enforcement: Only ugettechnologies@gmail.com can log in as ADMIN
+    if (user.role === 'ADMIN' && user.email.toLowerCase() !== ADMIN_GMAIL) {
       return NextResponse.json(
-        { error: 'Your registration is pending Admin approval. Login credentials will be activated upon approval.' },
-        { status: 403 }
-      );
-    }
-
-    if ((user as any).status === 'REJECTED') {
-      return NextResponse.json(
-        { error: 'Your account application was not approved by administration.' },
+        { error: 'Unauthorized: Only ugettechnologies@gmail.com can sign in as Super Administrator.' },
         { status: 403 }
       );
     }

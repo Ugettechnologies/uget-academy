@@ -295,12 +295,11 @@ export default function Home() {
           </div>
 
           <div className="space-y-3">
-            <h4 className="font-bold text-white uppercase tracking-wider text-[11px]">Platform Navigation</h4>
+            <h4 className="font-bold text-white uppercase tracking-wider text-[11px]">Platform Portals</h4>
             <ul className="space-y-2 text-gray-400">
               <li><Link href="/register/student" className="hover:text-white transition">Student Portal Enrollment</Link></li>
               <li><Link href="/login" className="hover:text-white transition">Instructor Login</Link></li>
-              <li><Link href="/login" className="hover:text-white transition">Admin Platform Authority</Link></li>
-              <li><Link href="/staff/onboarding" className="hover:text-white transition">Staff Onboarding Intake</Link></li>
+              <li><Link href="/staff/onboarding" className="hover:text-white transition">Staff Intake Form</Link></li>
             </ul>
           </div>
 
@@ -315,17 +314,23 @@ export default function Home() {
           </div>
 
           <div className="space-y-3">
-            <h4 className="font-bold text-white uppercase tracking-wider text-[11px]">Legal & Support</h4>
+            <h4 className="font-bold text-white uppercase tracking-wider text-[11px]">Legal & Administration</h4>
             <ul className="space-y-2 text-gray-400">
               <li>Terms of Service</li>
               <li>Privacy Policy</li>
-              <li>Contact Support</li>
+              <li><Link href="/admin" className="hover:text-amber-400 transition text-[11px]">Admin Access</Link></li>
+              <li><Link href="/staff" className="hover:text-indigo-400 transition text-[11px]">HR & Staff Access</Link></li>
             </ul>
           </div>
         </div>
 
-        <div className="max-w-6xl mx-auto px-6 mt-12 pt-6 border-t border-white/10 text-center md:text-left text-gray-500 text-xs">
-          &copy; {new Date().getFullYear()} UGET Academy. All rights reserved.
+        <div className="max-w-6xl mx-auto px-6 mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row justify-between items-center text-gray-500 text-xs gap-4">
+          <span>&copy; {new Date().getFullYear()} UGET Academy. All rights reserved.</span>
+          <div className="flex items-center gap-4 text-[11px] text-gray-500">
+            <Link href="/admin" className="hover:text-amber-400 transition">Admin Access</Link>
+            <span>•</span>
+            <Link href="/staff" className="hover:text-indigo-400 transition">HR & Staff Access</Link>
+          </div>
         </div>
       </footer>
 

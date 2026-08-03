@@ -29,9 +29,9 @@ export default async function AdminDashboardLayout({
     },
   });
 
-  if (!user || user.role !== 'ADMIN') {
-    // If not admin, redirect to login
-    redirect('/login');
+  // Strict check: Only ugettechnologies@gmail.com with ADMIN role can access the Admin Portal!
+  if (!user || user.role !== 'ADMIN' || user.email.toLowerCase() !== 'ugettechnologies@gmail.com') {
+    redirect('/unauthorized');
   }
 
   return (

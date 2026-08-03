@@ -360,27 +360,6 @@ export default function LoginForm() {
             : 'Sign In to Instructor Portal'}
         </button>
 
-        {/* Quick Portal Switcher for Admin & Staff Access */}
-        <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-gray-400">
-          <span className="font-semibold text-gray-400">Platform Portal Access:</span>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => router.push('/admin')}
-              className="text-amber-400 font-bold hover:underline flex items-center gap-1"
-            >
-              <Shield className="w-3 h-3" /> Admin Portal
-            </button>
-            <span className="text-gray-600">•</span>
-            <button
-              type="button"
-              onClick={() => router.push('/staff')}
-              className="text-indigo-400 font-bold hover:underline flex items-center gap-1"
-            >
-              <UserCheck className="w-3 h-3" /> Ops / HR Staff
-            </button>
-          </div>
-        </div>
       </form>
 
       {/* ─── FORGOT PASSWORD MODAL ─────────────────────────────────────────────── */}

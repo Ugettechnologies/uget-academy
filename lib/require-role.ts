@@ -27,6 +27,11 @@ export async function requireRole(allowed: Array<'ADMIN' | 'STAFF' | 'STUDENT' |
     redirect('/unauthorized');
   }
 
+  // Strict check: Admin role strictly requires ugettechnologies@gmail.com
+  if (allowed.includes('ADMIN') && user.role === 'ADMIN' && user.email.toLowerCase() !== 'ugettechnologies@gmail.com') {
+    redirect('/unauthorized');
+  }
+
   return {
     user: {
       id: user.id,
