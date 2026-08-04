@@ -65,6 +65,7 @@ model User {
   sentDMs               DirectMessage[]       @relation("DMSender")
   receivedDMs           DirectMessage[]       @relation("DMReceiver")
   supportTickets        SupportTicket[]
+  staffProfile          StaffProfile?
 }
 
 model Course {
@@ -506,4 +507,85 @@ model SupportTicket {
 
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model StaffProfile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  department       String   @default("General")
+  position         String   @default("Staff Member")
+  emergencyContact String?
+  joiningDate      DateTime @default(now())
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StaffDocument {
+  id          String   @id @default(cuid())
+  staffUserId String
+  title       String
+  category    String   // "CONTRACT", "ID_PROOF", "CERTIFICATE", "VITALS", "OTHER"
+  fileUrl     String
+  uploadedAt  DateTime @default(now())
+}
+
+model Candidate {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  position  String
+  stage     String   @default("APPLIED") // "APPLIED", "INTERVIEWING", "OFFERED", "HIRED", "REJECTED"
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model StaffComplaint {
+  id          String   @id @default(cuid())
+  staffUserId String
+  subject     String
+  details     String
+  priority    String   @default("MEDIUM") // "LOW", "MEDIUM", "HIGH"
+  status      String   @default("OPEN")   // "OPEN", "IN_REVIEW", "RESOLVED"
+  adminNote   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AcademyMeeting {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  date        String   // "YYYY-MM-DD"
+  time        String   // "HH:MM"
+  location    String   // "Boardroom", "Google Meet Link", etc.
+  organizerId String
+  createdAt   DateTime @default(now())
+}
+
+model AcademyEvent {
+  id             String   @id @default(cuid())
+  title          String
+  description    String
+  eventDate      DateTime
+  location       String
+  targetAudience String   @default("ALL") // "ALL", "STAFF_ONLY", "STUDENTS_ONLY"
+  createdAt      DateTime @default(now())
+}
+
+model StaffReport {
+  id          String   @id @default(cuid())
+  staffUserId String
+  title       String
+  content     String
+  priority    String   @default("NORMAL") // "NORMAL", "URGENT"
+  status      String   @default("SUBMITTED") // "SUBMITTED", "REVIEWED"
+  adminReply  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 
