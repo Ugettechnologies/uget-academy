@@ -18,7 +18,8 @@ import {
   User, 
   Sparkles,
   BookOpen,
-  ShieldAlert
+  ShieldAlert,
+  Video
 } from 'lucide-react';
 
 interface InstructorSidebarProps {
@@ -124,6 +125,20 @@ export default function InstructorSidebar({ user, onLinkClick }: InstructorSideb
         >
           <Users className="w-4 h-4 shrink-0 text-emerald-400" />
           <span>Student Roster</span>
+        </Link>
+
+        {/* Live Classroom Meeting Room */}
+        <Link
+          href="/instructor/live"
+          onClick={onLinkClick}
+          className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+            isActive('/instructor/live')
+              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20'
+              : 'text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300'
+          }`}
+        >
+          <Video className="w-4 h-4 shrink-0 text-emerald-400 animate-pulse" />
+          <span>Live Classroom Room</span>
         </Link>
 
         {/* Timetable & Schedule Manager */}

@@ -18,8 +18,8 @@ import {
   BookOpen,
   ArrowRight,
   Clock,
-  CheckCircle2,
-  Video
+  Video,
+  CheckCircle2
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -160,10 +160,16 @@ export default async function InstructorDashboardPage() {
 
             <div className="flex flex-col sm:flex-row gap-3 pt-1">
               <Link
-                href="/instructor/schedule"
-                className="flex-1 py-3.5 px-5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold text-center hover:from-purple-500 hover:to-indigo-500 transition shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2"
+                href="/instructor/live"
+                className="flex-1 py-3.5 px-5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-extrabold text-center hover:from-emerald-500 hover:to-teal-500 transition shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Calendar className="w-4 h-4" /> Manage Timetable & Schedule
+                <Video className="w-4 h-4 animate-pulse" /> Launch Live Meeting & Roll Call
+              </Link>
+              <Link
+                href="/instructor/schedule"
+                className="flex-1 py-3.5 px-5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold text-center hover:from-purple-500 hover:to-indigo-500 transition shadow-lg shadow-purple-500/20 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Calendar className="w-4 h-4" /> Manage Timetable
               </Link>
             </div>
           </div>

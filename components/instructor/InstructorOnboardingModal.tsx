@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, 
   ChevronRight, 
+  ChevronLeft,
   X, 
   Check, 
   Users, 
@@ -27,7 +28,7 @@ const INSTRUCTOR_STEPS: OnboardingStep[] = [
   {
     title: 'Welcome to Instructor Workspace! 🎓',
     subtitle: 'Manage Your Assigned Cohort',
-    description: 'Welcome Dr. Instructor! Let us guide you through the tools to manage your assigned course roster, schedule lectures, grade assessments, and report to admin.',
+    description: 'Welcome Dr. Instructor! Let us guide you through the tools to manage your assigned course roster, schedule live lectures, grade assessments, and report to admin.',
     icon: Sparkles,
     accentColor: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
   },
@@ -87,6 +88,12 @@ export default function InstructorOnboardingModal() {
     }
   };
 
+  const handlePrevious = () => {
+    if (currentStepIndex > 0) {
+      setCurrentStepIndex((prev) => prev - 1);
+    }
+  };
+
   const finishOnboarding = () => {
     localStorage.setItem('uget_instructor_has_completed_onboarding', 'true');
     setIsOpen(false);
@@ -104,7 +111,7 @@ export default function InstructorOnboardingModal() {
         {/* Close Button */}
         <button
           onClick={finishOnboarding}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition p-1"
+          className="absolute top-4 right-4 text-gray-400 hover:text-white transition p-1 cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -135,14 +142,15 @@ export default function InstructorOnboardingModal() {
         {/* Step Progress Indicators */}
         <div className="flex gap-1.5 pt-2">
           {INSTRUCTOR_STEPS.map((_, index) => (
-            <div
+            <button
               key={index}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
+              onClick={() => setCurrentStepIndex(index)}
+              className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
                 index === currentStepIndex
                   ? 'w-8 bg-purple-600'
                   : index < currentStepIndex
-                  ? 'w-3 bg-purple-500/50'
-                  : 'w-3 bg-white/10'
+                  ? 'w-3 bg-purple-500/50 hover:bg-purple-400'
+                  : 'w-3 bg-white/10 hover:bg-white/20'
               }`}
             />
           ))}
@@ -153,29 +161,42 @@ export default function InstructorOnboardingModal() {
           <button
             type="button"
             onClick={finishOnboarding}
-            className="text-xs text-gray-400 hover:text-white transition font-medium"
+            className="text-xs text-gray-400 hover:text-white transition font-medium cursor-pointer"
           >
             Skip Tutorial
           </button>
 
-          <button
-            type="button"
-            onClick={handleNext}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs hover:from-purple-500 hover:to-indigo-500 transition shadow-lg shadow-purple-500/20"
-          >
-            {currentStepIndex === INSTRUCTOR_STEPS.length - 1 ? (
-              <>
-                <Check className="w-4 h-4" /> Start Teaching Now
-              </>
-            ) : (
-              <>
-                Next Guide <ChevronRight className="w-4 h-4" />
-              </>
+          <div className="flex items-center gap-2">
+            {currentStepIndex > 0 && (
+              <button
+                type="button"
+                onClick={handlePrevious}
+                className="inline-flex items-center gap-1 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition cursor-pointer border border-white/10"
+              >
+                <ChevronLeft className="w-4 h-4" /> Previous
+              </button>
             )}
-          </button>
+
+            <button
+              type="button"
+              onClick={handleNext}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-xs hover:from-purple-500 hover:to-indigo-500 transition shadow-lg shadow-purple-500/20 cursor-pointer"
+            >
+              {currentStepIndex === INSTRUCTOR_STEPS.length - 1 ? (
+                <>
+                  <Check className="w-4 h-4" /> Start Teaching Now
+                </>
+              ) : (
+                <>
+                  Next Guide <ChevronRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
       </div>
     </div>
   );
 }
+
