@@ -64,6 +64,7 @@ export default function StaffPortalClient({ user }: StaffPortalClientProps) {
 
   const [complaintModal, setComplaintModal] = useState(false);
   const [complaintForm, setComplaintForm] = useState({ subject: '', details: '', priority: 'MEDIUM' });
+  const [complaintSubFilter, setComplaintSubFilter] = useState<'ALL' | 'STAFF' | 'INSTRUCTOR' | 'STUDENT'>('ALL');
 
   const [meetingModal, setMeetingModal] = useState(false);
   const [meetingForm, setMeetingForm] = useState({ title: '', description: '', date: '', time: '', location: 'Boardroom' });
@@ -98,7 +99,13 @@ export default function StaffPortalClient({ user }: StaffPortalClientProps) {
       } else if (activeTab === 'COMPLAINTS') {
         const res = await fetch('/api/staff/complaints');
         const data = await res.json();
-        if (data.success) setComplaints(data.complaints);
+        if (data.success) {
+          const combined = [
+            ...(data.complaints || []),
+            ...(data.studentTickets || []),
+          ];
+          setComplaints(combined);
+        }
       } else if (activeTab === 'MEETINGS') {
         const res = await fetch('/api/staff/meetings');
         const data = await res.json();
@@ -493,13 +500,13 @@ export default function StaffPortalClient({ user }: StaffPortalClientProps) {
                 </div>
               )}
 
-              {/* TAB 5: STAFF COMPLAINTS */}
+              {/* TAB 5: COMPLAINTS & TICKET BOX */}
               {activeTab === 'COMPLAINTS' && (
                 <div className="space-y-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
                     <div>
-                      <h2 className="text-lg font-bold text-white">Staff Complaints & Ticket Box</h2>
-                      <p className="text-xs text-gray-400">Log internal complaints and monitor resolution status</p>
+                      <h2 className="text-lg font-bold text-white">Academy Complaints & Ticket Box</h2>
+                      <p className="text-xs text-gray-400">Manage internal complaints logged by Staff, Instructors, and Students</p>
                     </div>
                     <button
                       onClick={() => setComplaintModal(true)}
@@ -509,25 +516,133 @@ export default function StaffPortalClient({ user }: StaffPortalClientProps) {
                     </button>
                   </div>
 
+                  {/* Role Category Sub-Tabs */}
+                  <div className="flex flex-wrap gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/10 text-xs">
+                    <button
+                      onClick={() => setComplaintSubFilter('ALL')}
+                      className={`px-3.5 py-1.5 rounded-xl font-bold transition ${
+                        complaintSubFilter === 'ALL' ? 'bg-[#2563EB] text-white shadow-md' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      All Complaints ({complaints.length})
+                    </button>
+                    <button
+                      onClick={() => setComplaintSubFilter('STAFF')}
+                      className={`px-3.5 py-1.5 rounded-xl font-bold transition ${
+                        complaintSubFilter === 'STAFF' ? 'bg-teal-600 text-white shadow-md' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      Staff Complaints ({complaints.filter((c) => c.userRole === 'STAFF' || (!c.userRole && !c.isStudentTicket)).length})
+                    </button>
+                    <button
+                      onClick={() => setComplaintSubFilter('INSTRUCTOR')}
+                      className={`px-3.5 py-1.5 rounded-xl font-bold transition ${
+                        complaintSubFilter === 'INSTRUCTOR' ? 'bg-purple-600 text-white shadow-md' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      Instructor Complaints ({complaints.filter((c) => c.userRole === 'INSTRUCTOR').length})
+                    </button>
+                    <button
+                      onClick={() => setComplaintSubFilter('STUDENT')}
+                      className={`px-3.5 py-1.5 rounded-xl font-bold transition ${
+                        complaintSubFilter === 'STUDENT' ? 'bg-amber-600 text-slate-950 font-black shadow-md' : 'text-gray-400 hover:text-white'
+                      }`}
+                    >
+                      Student Complaints ({complaints.filter((c) => c.userRole === 'STUDENT' || c.isStudentTicket).length})
+                    </button>
+                  </div>
+
+                  {/* Complaints List */}
                   <div className="space-y-3">
-                    {complaints.map((c) => (
-                      <div key={c.id} className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-sm font-bold text-white">{c.subject}</h4>
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                            c.status === 'RESOLVED' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-rose-500/20 text-rose-300'
-                          }`}>
-                            {c.status}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-300">{c.details}</p>
-                        {c.adminNote && (
-                          <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 text-xs text-amber-200">
-                            <strong>Admin Note:</strong> {c.adminNote}
+                    {complaints
+                      .filter((c) => {
+                        if (complaintSubFilter === 'STAFF') return c.userRole === 'STAFF' || (!c.userRole && !c.isStudentTicket);
+                        if (complaintSubFilter === 'INSTRUCTOR') return c.userRole === 'INSTRUCTOR';
+                        if (complaintSubFilter === 'STUDENT') return c.userRole === 'STUDENT' || c.isStudentTicket;
+                        return true;
+                      })
+                      .map((c) => (
+                        <div key={c.id} className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
+                                c.userRole === 'INSTRUCTOR'
+                                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                  : c.userRole === 'STUDENT' || c.isStudentTicket
+                                  ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                                  : 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
+                              }`}>
+                                {c.userRole || (c.isStudentTicket ? 'STUDENT' : 'STAFF')}
+                              </span>
+                              <h4 className="text-sm font-bold text-white">{c.subject}</h4>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-gray-400 font-mono">
+                                {new Date(c.createdAt).toLocaleDateString()}
+                              </span>
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                                c.status === 'RESOLVED' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                              }`}>
+                                {c.status}
+                              </span>
+                            </div>
                           </div>
-                        )}
+
+                          <div className="flex justify-between items-center text-xs text-gray-400">
+                            <span>Complainant: <strong className="text-white">{c.userName || 'Academy User'}</strong> {c.userEmail ? `(${c.userEmail})` : ''}</span>
+                            <span className="text-[10px] font-mono uppercase font-bold text-gray-400">Priority: {c.priority || 'MEDIUM'}</span>
+                          </div>
+
+                          <p className="text-xs text-gray-300 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5">{c.details}</p>
+
+                          {c.adminNote && (
+                            <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/30 text-xs text-amber-200 space-y-1">
+                              <strong className="block text-[10px] uppercase font-bold text-amber-400">Admin Resolution Note:</strong>
+                              <p className="italic">{c.adminNote}</p>
+                            </div>
+                          )}
+
+                          {user.role === 'ADMIN' && c.status !== 'RESOLVED' && (
+                            <div className="pt-2 flex justify-end">
+                              <button
+                                onClick={async () => {
+                                  const adminNote = prompt('Enter resolution message or response note for complainant:');
+                                  if (adminNote === null) return;
+                                  try {
+                                    const res = await fetch('/api/staff/complaints', {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ complaintId: c.id, status: 'RESOLVED', adminNote, isStudentTicket: c.isStudentTicket }),
+                                    });
+                                    const data = await res.json();
+                                    if (data.success) {
+                                      showToast('success', 'Complaint resolution saved!');
+                                      loadTabData();
+                                    }
+                                  } catch {
+                                    showToast('error', 'Error saving resolution');
+                                  }
+                                }}
+                                className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition shadow-md cursor-pointer"
+                              >
+                                Resolve & Reply
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                    {complaints.filter((c) => {
+                      if (complaintSubFilter === 'STAFF') return c.userRole === 'STAFF' || (!c.userRole && !c.isStudentTicket);
+                      if (complaintSubFilter === 'INSTRUCTOR') return c.userRole === 'INSTRUCTOR';
+                      if (complaintSubFilter === 'STUDENT') return c.userRole === 'STUDENT' || c.isStudentTicket;
+                      return true;
+                    }).length === 0 && (
+                      <div className="p-8 text-center text-xs text-gray-400 italic bg-white/5 rounded-2xl border border-white/5">
+                        No {complaintSubFilter.toLowerCase()} complaints recorded yet.
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               )}

@@ -17,7 +17,8 @@ import {
   ListTodo, 
   User, 
   Sparkles,
-  BookOpen
+  BookOpen,
+  ShieldAlert
 } from 'lucide-react';
 
 interface InstructorSidebarProps {
@@ -235,6 +236,20 @@ export default function InstructorSidebar({ user, onLinkClick }: InstructorSideb
         >
           <ListTodo className="w-4 h-4 shrink-0 text-teal-400" />
           <span>To-Do List</span>
+        </Link>
+
+        {/* Complaints & Ticket Box */}
+        <Link
+          href="/instructor/support"
+          onClick={onLinkClick}
+          className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-200 ${
+            isActive('/instructor/support')
+              ? 'bg-[#2563EB] text-white shadow-md shadow-blue-500/20'
+              : 'text-gray-400 hover:bg-white/5 hover:text-white'
+          }`}
+        >
+          <ShieldAlert className="w-4 h-4 shrink-0 text-rose-400" />
+          <span>Complaints & Ticket Box</span>
         </Link>
 
         {/* Profile & Settings (Logout inside) */}
