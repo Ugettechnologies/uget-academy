@@ -1,16 +1,54 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart3, Download, Users, DollarSign, Calendar, CheckCircle2, Star, Sparkles } from 'lucide-react';
 
 export default function AdminReportsView() {
   const [activeTab, setActiveTab] = useState<'ENROLLED' | 'REVENUE' | 'ATTENDANCE' | 'COMPLETION' | 'INSTRUCTOR'>('REVENUE');
   const [isExported, setIsExported] = useState(false);
+  const [totalStudents, setTotalStudents] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const [usersRes, paymentsRes] = await Promise.all([
+          fetch('/api/admin/users'),
+          fetch('/api/admin/payments'),
+        ]);
+
+        if (usersRes.ok) {
+          const users = await usersRes.json();
+          const count = users.filter((u: any) => u.role === 'STUDENT').length;
+          setTotalStudents(count);
+        }
+
+        if (paymentsRes.ok) {
+          const pData = await paymentsRes.json();
+          if (pData.success && pData.stats) {
+            setTotalRevenue(pData.stats.totalRevenue || 0);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMetrics();
+  }, []);
 
   const handleExportData = () => {
     setIsExported(true);
     setTimeout(() => setIsExported(false), 3000);
   };
+
+  const formattedRevenue = new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    maximumFractionDigits: 0,
+  }).format(totalRevenue);
 
   return (
     <div className="space-y-6 text-white animate-fade-in">
@@ -28,7 +66,7 @@ export default function AdminReportsView() {
             onClick={() => setActiveTab('REVENUE')}
             className={`px-4 py-2 rounded-xl font-bold transition ${activeTab === 'REVENUE' ? 'bg-amber-600 text-slate-950 shadow-md font-black' : 'text-gray-400 hover:text-white'}`}
           >
-            Revenue (₦9.2M)
+            Revenue ({formattedRevenue})
           </button>
           <button
             onClick={() => setActiveTab('ATTENDANCE')}
@@ -73,22 +111,11 @@ export default function AdminReportsView() {
               <h3 className="font-extrabold text-white text-base">Enrolled Growth Analytics</h3>
               <p className="text-xs text-gray-400">Total student signups across all cohorts</p>
             </div>
-            <span className="text-2xl font-black text-emerald-400 font-mono">1,540 Students</span>
+            <span className="text-2xl font-black text-emerald-400 font-mono">{totalStudents} Student{totalStudents === 1 ? '' : 's'}</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
-              <span className="text-[10px] text-gray-400 font-bold uppercase">Cybersecurity Track</span>
-              <p className="font-bold text-white text-base">420 Enrolled</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
-              <span className="text-[10px] text-gray-400 font-bold uppercase">Data Analytics Track</span>
-              <p className="font-bold text-white text-base">380 Enrolled</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
-              <span className="text-[10px] text-gray-400 font-bold uppercase">Software Engineering</span>
-              <p className="font-bold text-white text-base">410 Enrolled</p>
-            </div>
+          <div className="p-6 text-center text-xs text-gray-400 italic bg-white/5 rounded-2xl border border-white/10">
+            {totalStudents > 0 ? `${totalStudents} student(s) currently registered in database.` : 'No enrolled students recorded in database.'}
           </div>
         </div>
       )}
@@ -101,22 +128,11 @@ export default function AdminReportsView() {
               <h3 className="font-extrabold text-white text-base">Platform Revenue Breakdown</h3>
               <p className="text-xs text-gray-400">Total settled platform revenue from course enrollments</p>
             </div>
-            <span className="text-3xl font-black text-amber-400 font-mono">₦9.2M Total</span>
+            <span className="text-3xl font-black text-amber-400 font-mono">{formattedRevenue} Total</span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
-              <span className="text-[10px] text-gray-400 font-bold uppercase">This Month Revenue</span>
-              <p className="font-bold text-amber-300 text-base font-mono">₦1.14M</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
-              <span className="text-[10px] text-gray-400 font-bold uppercase">Average per Course</span>
-              <p className="font-bold text-white text-base font-mono">₦920,000</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
-              <span className="text-[10px] text-gray-400 font-bold uppercase">MoM Growth Rate</span>
-              <p className="font-bold text-emerald-400 text-base font-mono">+20.9%</p>
-            </div>
+          <div className="p-6 text-center text-xs text-gray-400 italic bg-white/5 rounded-2xl border border-white/10">
+            Live database revenue tracked from verified payment transactions.
           </div>
         </div>
       )}

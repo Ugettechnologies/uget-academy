@@ -73,12 +73,6 @@ export default async function AdminDashboardPage() {
     },
   });
 
-  const courseEngagement = [
-    { title: 'Cybersecurity & Threat Intelligence', enrolled: 420, completionRate: '94%', tutor: 'Dr. Ada Lovelace' },
-    { title: 'Data Analytics & Predictive Modeling', enrolled: 380, completionRate: '89%', tutor: 'Prof. Alan Turing' },
-    { title: 'Software Engineering & Architecture', enrolled: 410, completionRate: '92%', tutor: 'Grace Hopper' },
-    { title: 'Full-Stack Web Development', enrolled: 330, completionRate: '86%', tutor: 'Margaret Hamilton' },
-  ];
 
   return (
     <div className="space-y-8 animate-fade-in text-white">

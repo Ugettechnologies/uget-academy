@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldAlert, Plus, Check, Users, UserCheck, Lock, Sparkles } from 'lucide-react';
 
 interface TeamMember {
@@ -12,12 +12,34 @@ interface TeamMember {
 }
 
 export default function RoleManager() {
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
-    { id: 'm-1', name: 'Nadim Macabey', email: 'nadim@uget-academy.online', role: 'OWNER', status: 'ACTIVE' },
-    { id: 'm-[#', name: 'Aisha Bello', email: 'aisha.b@uget-academy.online', role: 'ADMIN', status: 'ACTIVE' },
-    { id: 'm-3', name: 'James Carter', email: 'james.c@uget-academy.online', role: 'BILLING_MANAGER', status: 'ACTIVE' },
-    { id: 'm-4', name: 'Lena Fischer', email: 'lena.f@uget-academy.online', role: 'READ_ONLY', status: 'PENDING' },
-  ]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTeam = async () => {
+      try {
+        const res = await fetch('/api/admin/users');
+        if (res.ok) {
+          const users = await res.json();
+          const team = users
+            .filter((u: any) => u.role === 'ADMIN' || u.role === 'STAFF')
+            .map((u: any) => ({
+              id: u.id,
+              name: `${u.firstName} ${u.lastName}`,
+              email: u.email,
+              role: (u.role === 'ADMIN' ? 'ADMIN' : 'READ_ONLY') as any,
+              status: (u.status === 'APPROVED' ? 'ACTIVE' : 'PENDING') as any,
+            }));
+          setTeamMembers(team);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTeam();
+  }, []);
 
   const permissionsMatrix = [
     { permission: 'Manage Students', owner: true, admin: true, billing: false, readOnly: false },

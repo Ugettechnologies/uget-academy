@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen, Plus, Edit2, Archive, Check, Search, Users, UserCheck, Sparkles } from 'lucide-react';
 
 interface CourseItem {
@@ -14,55 +14,47 @@ interface CourseItem {
 }
 
 export default function AdminCourseManager() {
-  const [courses, setCourses] = useState<CourseItem[]>([
-    {
-      id: 'crs-1',
-      title: 'Cybersecurity & Threat Intelligence',
-      category: 'Cybersecurity Track',
-      status: 'PUBLISHED',
-      enrolledStudentsCount: 420,
-      assignedTutor: 'Mr. Anthony',
-      price: '₦150,000',
-    },
-    {
-      id: 'crs-2',
-      title: 'Data Analytics & Predictive Modeling',
-      category: 'Data Science Track',
-      status: 'PUBLISHED',
-      enrolledStudentsCount: 380,
-      assignedTutor: 'Ms. Goodness',
-      price: '₦140,000',
-    },
-    {
-      id: 'crs-3',
-      title: 'Software Engineering & Architecture',
-      category: 'Development Track',
-      status: 'PUBLISHED',
-      enrolledStudentsCount: 410,
-      assignedTutor: 'Mr. Mayorkun',
-      price: '₦160,000',
-    },
-    {
-      id: 'crs-4',
-      title: 'UI/UX System Design & Wireframing',
-      category: 'Design Track',
-      status: 'PUBLISHED',
-      enrolledStudentsCount: 330,
-      assignedTutor: 'Mr. Chief',
-      price: '₦120,000',
-    },
-    {
-      id: 'crs-5',
-      title: 'AI & Automation Engineering',
-      category: 'AI & Automation Track',
-      status: 'PUBLISHED',
-      enrolledStudentsCount: 290,
-      assignedTutor: 'Mr. Light',
-      price: '₦180,000',
-    },
-  ]);
+  const [courses, setCourses] = useState<CourseItem[]>([]);
+  const [tutors, setTutors] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [tutors] = useState(['Mr. Anthony', 'Ms. Goodness', 'Mr. Mayorkun', 'Mr. Chief', 'Mr. Light']);
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [coursesRes, usersRes] = await Promise.all([
+          fetch('/api/courses'),
+          fetch('/api/admin/users'),
+        ]);
+
+        if (usersRes.ok) {
+          const users = await usersRes.json();
+          const insNames = users
+            .filter((u: any) => u.role === 'INSTRUCTOR')
+            .map((u: any) => `${u.firstName} ${u.lastName}`);
+          setTutors(insNames);
+        }
+
+        if (coursesRes.ok) {
+          const fetchedCourses = await coursesRes.json();
+          const mappedCourses = fetchedCourses.map((c: any) => ({
+            id: c.id,
+            title: c.title,
+            category: 'Academy Course Track',
+            status: c.published ? 'PUBLISHED' : 'DRAFT',
+            enrolledStudentsCount: 0,
+            assignedTutor: c.instructor ? `${c.instructor.firstName} ${c.instructor.lastName}` : 'Unassigned',
+            price: `₦${Number(c.price || 0).toLocaleString()}`,
+          }));
+          setCourses(mappedCourses);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCourseToAssign, setActiveCourseToAssign] = useState<CourseItem | null>(null);

@@ -26,8 +26,8 @@ export default async function StaffOpsDashboardPage() {
     },
   });
 
-  // Students and Instructors are NOT allowed to access the HR/Staff Portal
-  if (!user || (user.role !== 'STAFF' && user.role !== 'ADMIN')) {
+  // Only ADMIN is allowed to access the HR/Staff Portal
+  if (!user || user.role !== 'ADMIN') {
     redirect('/unauthorized');
   }
 

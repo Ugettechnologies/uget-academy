@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layers, Plus, Users, UserCheck, Check, Search, Calendar, BookOpen } from 'lucide-react';
 
 interface ClassSection {
@@ -13,46 +13,38 @@ interface ClassSection {
 }
 
 export default function ClassSectionManager() {
-  const [sections, setSections] = useState<ClassSection[]>([
-    {
-      id: 'sec-a',
-      sectionName: 'Class Section A (Morning Cohort)',
-      courseTitle: 'Cybersecurity & Threat Intelligence',
-      scheduleType: 'MORNING',
-      assignedTutor: 'Dr. Ada Lovelace',
-      assignedStudentsCount: 22,
-    },
-    {
-      id: 'sec-b',
-      sectionName: 'Class Section B (Evening Cohort)',
-      courseTitle: 'Cybersecurity & Threat Intelligence',
-      scheduleType: 'EVENING',
-      assignedTutor: 'Dr. Ada Lovelace',
-      assignedStudentsCount: 18,
-    },
-    {
-      id: 'sec-c',
-      sectionName: 'Class Section C (Weekend Practical)',
-      courseTitle: 'Data Analytics & Predictive Modeling',
-      scheduleType: 'WEEKEND',
-      assignedTutor: 'Prof. Alan Turing',
-      assignedStudentsCount: 25,
-    },
-  ]);
+  const [sections, setSections] = useState<ClassSection[]>([]);
+  const [unassignedStudents, setUnassignedStudents] = useState<{ name: string; admissionNo: string }[]>([]);
 
-  const [unassignedStudents] = useState([
-    { name: 'John von Neumann', admissionNo: '2026/STU/A102' },
-    { name: 'Claude Shannon', admissionNo: '2026/STU/A118' },
-  ]);
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const res = await fetch('/api/admin/users');
+        if (res.ok) {
+          const users = await res.json();
+          const students = users
+            .filter((u: any) => u.role === 'STUDENT')
+            .map((u: any) => ({
+              name: `${u.firstName} ${u.lastName}`,
+              admissionNo: u.username || `2026/STU/${u.id.slice(-4).toUpperCase()}`,
+            }));
+          setUnassignedStudents(students);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchStudents();
+  }, []);
 
   const [isCreatingSection, setIsCreatingSection] = useState(false);
   const [newSectionName, setNewSectionName] = useState('');
   const [newCourseTitle, setNewCourseTitle] = useState('Cybersecurity & Threat Intelligence');
   const [newScheduleType, setNewScheduleType] = useState<'MORNING' | 'EVENING' | 'WEEKEND'>('MORNING');
-  const [newTutor, setNewTutor] = useState('Dr. Ada Lovelace');
+  const [newTutor, setNewTutor] = useState('Unassigned');
 
   const [activeAssigningSection, setActiveAssigningSection] = useState<ClassSection | null>(null);
-  const [selectedStudentToAssign, setSelectedStudentToAssign] = useState(unassignedStudents[0]?.name || '');
+  const [selectedStudentToAssign, setSelectedStudentToAssign] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
   const handleCreateSection = (e: React.FormEvent) => {

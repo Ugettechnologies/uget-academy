@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Search, UserCheck, Star, ShieldAlert, Archive, Plus, Check, Mail, BookOpen } from 'lucide-react';
 
 interface InstructorRecord {
@@ -15,58 +15,37 @@ interface InstructorRecord {
 }
 
 export default function AdminInstructorDirectory() {
-  const [instructors, setInstructors] = useState<InstructorRecord[]>([
-    {
-      id: 'ins-1',
-      name: 'Mr. Anthony',
-      departmentCode: 'UGT2026/INSCS/A026',
-      email: 'anthony@uget-academy.online',
-      courseHandled: 'Cybersecurity & Threat Intelligence',
-      rating: 4.9,
-      assignedStudentsCount: 420,
-      status: 'ACTIVE',
-    },
-    {
-      id: 'ins-2',
-      name: 'Ms. Goodness',
-      departmentCode: 'UGT2026/INSDA/A088',
-      email: 'goodness@uget-academy.online',
-      courseHandled: 'Data Analytics & Predictive Modeling',
-      rating: 4.9,
-      assignedStudentsCount: 380,
-      status: 'ACTIVE',
-    },
-    {
-      id: 'ins-3',
-      name: 'Mr. Mayorkun',
-      departmentCode: 'UGT2026/INSSE/A012',
-      email: 'mayorkun@uget-academy.online',
-      courseHandled: 'Software Engineering & Architecture',
-      rating: 4.9,
-      assignedStudentsCount: 410,
-      status: 'ACTIVE',
-    },
-    {
-      id: 'ins-4',
-      name: 'Mr. Chief',
-      departmentCode: 'UGT2026/INSUX/A055',
-      email: 'chief@uget-academy.online',
-      courseHandled: 'UI/UX System Design & Wireframing',
-      rating: 4.8,
-      assignedStudentsCount: 330,
-      status: 'ACTIVE',
-    },
-    {
-      id: 'ins-5',
-      name: 'Mr. Light',
-      departmentCode: 'UGT2026/INSAI/A099',
-      email: 'light@uget-academy.online',
-      courseHandled: 'AI & Automation Engineering',
-      rating: 5.0,
-      assignedStudentsCount: 290,
-      status: 'ACTIVE',
-    },
-  ]);
+  const [instructors, setInstructors] = useState<InstructorRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchInstructors = async () => {
+      try {
+        const res = await fetch('/api/admin/users');
+        if (res.ok) {
+          const users = await res.json();
+          const insUsers = users
+            .filter((u: any) => u.role === 'INSTRUCTOR')
+            .map((u: any) => ({
+              id: u.id,
+              name: `${u.firstName} ${u.lastName}`,
+              departmentCode: u.username || `UGT2026/INS/${u.id.slice(-4).toUpperCase()}`,
+              email: u.email,
+              courseHandled: u.coursesAsInstructor?.[0]?.title || 'Unassigned Track',
+              rating: 5.0,
+              assignedStudentsCount: 0,
+              status: (u.status === 'REJECTED' ? 'ARCHIVED' : 'ACTIVE') as any,
+            }));
+          setInstructors(insUsers);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInstructors();
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isPreRegistering, setIsPreRegistering] = useState(false);

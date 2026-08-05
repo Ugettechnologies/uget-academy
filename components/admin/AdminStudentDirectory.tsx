@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   GraduationCap, 
   Search, 
@@ -30,56 +30,39 @@ interface StudentDirectoryItem {
 }
 
 export default function AdminStudentDirectory() {
-  const [students, setStudents] = useState<StudentDirectoryItem[]>([
-    {
-      id: 'stu-1',
-      name: 'Grace Hopper',
-      admissionNo: '2026/STU/A012',
-      email: 'grace.h@uget-enrollment.online',
-      courseTitle: 'Cybersecurity & Threat Intelligence',
-      classSection: 'Class Section A (Morning)',
-      attendancePercent: 96,
-      assignmentsCompleted: '4 / 4 Completed',
-      examScore: 92,
-      attendanceStatus: 'PRESENT',
-    },
-    {
-      id: 'stu-2',
-      name: 'Alan Turing',
-      admissionNo: '2026/STU/A088',
-      email: 'alan.t@uget-enrollment.online',
-      courseTitle: 'Data Analytics & Predictive Modeling',
-      classSection: 'Class Section C (Weekend)',
-      attendancePercent: 100,
-      assignmentsCompleted: '4 / 4 Completed',
-      examScore: 95,
-      attendanceStatus: 'PRESENT',
-    },
-    {
-      id: 'stu-3',
-      name: 'Margaret Hamilton',
-      admissionNo: '2026/STU/A044',
-      email: 'margaret.h@uget-enrollment.online',
-      courseTitle: 'Cybersecurity & Threat Intelligence',
-      classSection: 'Class Section B (Evening)',
-      attendancePercent: 70,
-      assignmentsCompleted: '2 / 4 Completed',
-      examScore: 68,
-      attendanceStatus: 'FLAGGED',
-    },
-    {
-      id: 'stu-4',
-      name: 'John von Neumann',
-      admissionNo: '2026/STU/A102',
-      email: 'john.v@uget-enrollment.online',
-      courseTitle: 'Software Engineering & Architecture',
-      classSection: 'Class Section A (Morning)',
-      attendancePercent: 55,
-      assignmentsCompleted: '1 / 4 Completed',
-      examScore: 50,
-      attendanceStatus: 'ABSENT',
-    },
-  ]);
+  const [students, setStudents] = useState<StudentDirectoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        const res = await fetch('/api/admin/users');
+        if (res.ok) {
+          const users = await res.json();
+          const studentUsers = users
+            .filter((u: any) => u.role === 'STUDENT')
+            .map((u: any) => ({
+              id: u.id,
+              name: `${u.firstName} ${u.lastName}`,
+              admissionNo: u.username || `2026/STU/${u.id.slice(-4).toUpperCase()}`,
+              email: u.email,
+              courseTitle: u.enrollments?.[0]?.course?.title || 'General Academy Track',
+              classSection: 'Class Section A',
+              attendancePercent: 100,
+              assignmentsCompleted: '0 Completed',
+              examScore: 0,
+              attendanceStatus: 'PRESENT' as const,
+            }));
+          setStudents(studentUsers);
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStudents();
+  }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDrawerStudent, setActiveDrawerStudent] = useState<StudentDirectoryItem | null>(null);
@@ -139,7 +122,7 @@ export default function AdminStudentDirectory() {
         </div>
 
         <span className="text-xs text-gray-400 font-mono font-bold">
-          Total Enrolled: <strong className="text-emerald-400">1,540 Students</strong>
+          Total Enrolled: <strong className="text-emerald-400">{students.length} Student{students.length === 1 ? '' : 's'}</strong>
         </span>
       </div>
 

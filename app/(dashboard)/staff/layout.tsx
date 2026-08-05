@@ -27,8 +27,8 @@ export default async function StaffLayout({
     },
   });
 
-  // Students and Instructors are NOT allowed to access the HR/Staff page
-  if (!user || (user.role !== 'STAFF' && user.role !== 'ADMIN')) {
+  // Only ADMIN is allowed to access the HR/Staff portal
+  if (!user || user.role !== 'ADMIN') {
     redirect('/unauthorized');
   }
 

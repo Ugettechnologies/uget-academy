@@ -34,8 +34,8 @@ export default function StaffLoginForm() {
 
       const userRole = data.role as string;
 
-      if (userRole !== 'STAFF' && userRole !== 'ADMIN') {
-        setError('Unauthorized: This account does not have HR / Staff portal permissions.');
+      if (userRole !== 'ADMIN') {
+        setError('Unauthorized: Only Super Admin accounts can access the HR & Staff portal.');
         setLoading(false);
         return;
       }
