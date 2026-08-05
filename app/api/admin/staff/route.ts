@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession, hashPassword } from '@/lib/auth';
+import { getSession, hashPassword, generateStaffUsername, generateAutoPassword } from '@/lib/auth';
 
 export async function GET() {
   const session = await getSession();
@@ -44,15 +44,18 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { firstName, lastName, email, username, password, department, position, phone } = body;
 
-    if (!firstName || !lastName || !email || !password) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!firstName || !lastName || !email) {
+      return NextResponse.json({ error: 'First name, last name, and email are required' }, { status: 400 });
     }
+
+    const assignedUsername = username && username.trim().length > 0 ? username.trim() : generateStaffUsername();
+    const rawPassword = password && password.trim().length > 0 ? password.trim() : generateAutoPassword('STAFF');
 
     const existingUser = await prisma.user.findFirst({
       where: {
         OR: [
           { email: email.trim().toLowerCase() },
-          { username: username ? username.trim() : undefined },
+          { username: assignedUsername },
         ],
       },
     });
@@ -61,14 +64,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'User with this email or username already exists' }, { status: 400 });
     }
 
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await hashPassword(rawPassword);
 
     const newUser = await prisma.user.create({
       data: {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         email: email.trim().toLowerCase(),
-        username: username ? username.trim() : email.trim().toLowerCase().split('@')[0],
+        username: assignedUsername,
         passwordHash,
         phone: phone ? phone.trim() : null,
         role: 'STAFF',
@@ -76,7 +79,7 @@ export async function POST(request: Request) {
         status: 'APPROVED',
         staffProfile: {
           create: {
-            department: department || 'General',
+            department: department || 'General Operations',
             position: position || 'Staff Member',
           },
         },
@@ -88,8 +91,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Staff account created successfully',
+      message: `Staff account created successfully for ${newUser.firstName} ${newUser.lastName}.`,
       staff: newUser,
+      username: assignedUsername,
+      passwordCode: rawPassword,
     });
   } catch (error) {
     console.error('Error creating staff member:', error);

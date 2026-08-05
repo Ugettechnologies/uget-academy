@@ -19,6 +19,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import Link from 'next/link';
+import CredentialDispatchModal, { CredentialData } from '@/components/admin/CredentialDispatchModal';
 
 interface AdminLayoutFrameProps {
   user: {
@@ -56,6 +57,10 @@ export default function AdminLayoutFrame({ user, children }: AdminLayoutFramePro
   // Toast state
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
+  // Credential Dispatch Modal State
+  const [activeDispatchModal, setActiveDispatchModal] = useState(false);
+  const [dispatchData, setDispatchData] = useState<CredentialData | null>(null);
+
   useEffect(() => {
     if (window.innerWidth < 1024) {
       setIsSidebarOpen(false);
@@ -80,6 +85,8 @@ export default function AdminLayoutFrame({ user, children }: AdminLayoutFramePro
       if (data.success) {
         triggerToast('success', `Staff account issued for ${staffForm.firstName}!`);
         setShowAddStaffModal(false);
+        const createdEmail = staffForm.email;
+        const createdName = `${staffForm.firstName} ${staffForm.lastName}`;
         setStaffForm({
           firstName: '',
           lastName: '',
@@ -90,6 +97,16 @@ export default function AdminLayoutFrame({ user, children }: AdminLayoutFramePro
           position: 'Staff Member',
           phone: '',
         });
+
+        // Trigger Credential Dispatch Modal
+        setDispatchData({
+          name: createdName,
+          username: data.username,
+          passwordCode: data.passwordCode,
+          email: createdEmail,
+          role: 'STAFF',
+        });
+        setActiveDispatchModal(true);
       } else {
         triggerToast('error', data.error || 'Failed to create staff account');
       }
@@ -465,6 +482,13 @@ export default function AdminLayoutFrame({ user, children }: AdminLayoutFramePro
           </div>
         </div>
       )}
+
+      {/* Credential Dispatch Modal */}
+      <CredentialDispatchModal
+        isOpen={activeDispatchModal}
+        onClose={() => setActiveDispatchModal(false)}
+        credentials={dispatchData}
+      />
     </div>
   );
 }

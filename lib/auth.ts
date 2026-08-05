@@ -84,3 +84,30 @@ export function generateInstructorUsername(deptCode?: string): string {
   const insPrefix = cleanDept ? `INS${cleanDept}` : 'INS';
   return `UGT${year}/${insPrefix}/${code}`;
 }
+
+/**
+ * Generate a staff username formatted like: UGT2026/STF/A026
+ */
+export function generateStaffUsername(): string {
+  const year = new Date().getFullYear();
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `UGT${year}/STF/${code}`;
+}
+
+/**
+ * Generate a clean, secure auto-generated password code for any role.
+ * E.g. INS-8A4F92, STF-3B1902, STU-9X4281
+ */
+export function generateAutoPassword(role: string): string {
+  const prefix = role === 'INSTRUCTOR' ? 'INS' : role === 'STAFF' ? 'STF' : role === 'ADMIN' ? 'ADM' : 'STU';
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `${prefix}-${code}`;
+}

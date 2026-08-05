@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Users, Search, UserCheck, Star, ShieldAlert, Archive, Plus, Check, Mail, BookOpen } from 'lucide-react';
+import { Users, Search, UserCheck, Star, ShieldAlert, Archive, Plus, Check, Mail, Key, UserX, RefreshCw } from 'lucide-react';
+import CredentialDispatchModal, { CredentialData } from '@/components/admin/CredentialDispatchModal';
 
 interface InstructorRecord {
   id: string;
@@ -18,78 +19,162 @@ export default function AdminInstructorDirectory() {
   const [instructors, setInstructors] = useState<InstructorRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchInstructors = async () => {
-      try {
-        const res = await fetch('/api/admin/users');
-        if (res.ok) {
-          const users = await res.json();
-          const insUsers = users
-            .filter((u: any) => u.role === 'INSTRUCTOR')
-            .map((u: any) => ({
-              id: u.id,
-              name: `${u.firstName} ${u.lastName}`,
-              departmentCode: u.username || `UGT2026/INS/${u.id.slice(-4).toUpperCase()}`,
-              email: u.email,
-              courseHandled: u.coursesAsInstructor?.[0]?.title || 'Unassigned Track',
-              rating: 5.0,
-              assignedStudentsCount: 0,
-              status: (u.status === 'REJECTED' ? 'ARCHIVED' : 'ACTIVE') as any,
-            }));
-          setInstructors(insUsers);
-        }
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
+  const fetchInstructors = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/users');
+      if (res.ok) {
+        const users = await res.json();
+        const insUsers = users
+          .filter((u: any) => u.role === 'INSTRUCTOR')
+          .map((u: any) => ({
+            id: u.id,
+            name: `${u.firstName} ${u.lastName}`,
+            departmentCode: u.username || `UGT2026/INS/${u.id.slice(-4).toUpperCase()}`,
+            email: u.email,
+            courseHandled: u.coursesAsInstructor?.[0]?.title || 'Unassigned Track',
+            rating: 5.0,
+            assignedStudentsCount: u.coursesAsInstructor?.length || 0,
+            status: (u.status === 'REJECTED' ? 'ARCHIVED' : 'ACTIVE') as any,
+          }));
+        setInstructors(insUsers);
       }
-    };
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchInstructors();
   }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isPreRegistering, setIsPreRegistering] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [newFirstName, setNewFirstName] = useState('');
   const [newLastName, setNewLastName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newDeptCode, setNewDeptCode] = useState('CS');
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [customPasswordCode, setCustomPasswordCode] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handlePreRegister = (e: React.FormEvent) => {
+  // Credential Dispatch Modal State
+  const [activeDispatchModal, setActiveDispatchModal] = useState(false);
+  const [dispatchData, setDispatchData] = useState<CredentialData | null>(null);
+
+  // Replace / Fire Instructor State
+  const [firingInstructor, setFiringInstructor] = useState<InstructorRecord | null>(null);
+  const [selectedReplacementId, setSelectedReplacementId] = useState('');
+  const [isReplacing, setIsReplacing] = useState(false);
+
+  const handlePreRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFirstName || !newEmail) return;
 
-    const formattedDept = `UGT2026/INS${newDeptCode.toUpperCase()}/A${Math.floor(100 + Math.random() * 900)}`;
-    const newIns: InstructorRecord = {
-      id: `ins-${Date.now()}`,
-      name: `${newFirstName} ${newLastName}`,
-      departmentCode: formattedDept,
-      email: newEmail,
-      courseHandled: 'Pending Track Assignment',
-      rating: 5.0,
-      assignedStudentsCount: 0,
-      status: 'ACTIVE',
-    };
+    setSubmitting(true);
+    setErrorMessage(null);
 
-    setInstructors([newIns, ...instructors]);
-    setIsPreRegistering(false);
-    setNewFirstName('');
-    setNewLastName('');
-    setNewEmail('');
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: newFirstName.trim(),
+          lastName: newLastName.trim(),
+          email: newEmail.trim(),
+          role: 'INSTRUCTOR',
+          departmentCode: newDeptCode,
+          passwordCode: customPasswordCode.trim() || undefined,
+        }),
+      });
 
-    setIsSuccess(true);
-    setTimeout(() => setIsSuccess(false), 3000);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMessage(data.error || 'Failed to provision instructor account');
+        setSubmitting(false);
+        return;
+      }
+
+      setIsPreRegistering(false);
+      setNewFirstName('');
+      setNewLastName('');
+      setNewEmail('');
+      setCustomPasswordCode('');
+      fetchInstructors();
+
+      // Launch Credential Dispatch Modal with generated credentials
+      setDispatchData({
+        name: `${data.user.firstName} ${data.user.lastName}`,
+        username: data.username,
+        passwordCode: data.passwordCode,
+        email: data.user.email,
+        role: 'INSTRUCTOR',
+      });
+      setActiveDispatchModal(true);
+    } catch (e) {
+      setErrorMessage('Network error provisioning instructor account');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleArchiveInstructor = (id: string) => {
-    setInstructors((prev) =>
-      prev.map((ins) =>
-        ins.id === id
-          ? { ...ins, status: ins.status === 'ARCHIVED' ? 'ACTIVE' : 'ARCHIVED' }
-          : ins
-      )
-    );
+  const handleResetPassword = async (ins: InstructorRecord) => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: ins.id,
+          action: 'RESET_PASSWORD',
+        }),
+      });
+      const data = await res.json();
+
+      if (res.ok && data.passwordCode) {
+        setDispatchData({
+          name: ins.name,
+          username: data.username || ins.departmentCode,
+          passwordCode: data.passwordCode,
+          email: ins.email,
+          role: 'INSTRUCTOR',
+        });
+        setActiveDispatchModal(true);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleExecuteReplace = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!firingInstructor || !selectedReplacementId) return;
+
+    setIsReplacing(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId: firingInstructor.id,
+          action: 'REPLACE_INSTRUCTOR',
+          replacementInstructorId: selectedReplacementId,
+        }),
+      });
+
+      if (res.ok) {
+        setFiringInstructor(null);
+        setSelectedReplacementId('');
+        fetchInstructors();
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsReplacing(false);
+    }
   };
 
   const filteredInstructors = instructors.filter(
@@ -100,7 +185,6 @@ export default function AdminInstructorDirectory() {
 
   return (
     <div className="space-y-6 text-white animate-fade-in">
-      
       {/* Search & Action Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#0F172A] border border-white/10 p-5 rounded-3xl shadow-xl">
         <div className="relative w-full sm:w-80">
@@ -114,20 +198,12 @@ export default function AdminInstructorDirectory() {
           <Search className="absolute left-3 top-3 w-3.5 h-3.5 text-gray-400" />
         </div>
 
-        <div className="flex items-center gap-3">
-          {isSuccess && (
-            <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-              <Check className="w-4 h-4" /> Instructor Account Provisioned!
-            </span>
-          )}
-
-          <button
-            onClick={() => setIsPreRegistering(true)}
-            className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-purple-500/20"
-          >
-            <Plus className="w-4 h-4" /> Provision Instructor Account
-          </button>
-        </div>
+        <button
+          onClick={() => setIsPreRegistering(true)}
+          className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition flex items-center gap-2 shadow-lg shadow-purple-500/20 cursor-pointer"
+        >
+          <Plus className="w-4 h-4" /> Provision Instructor Account
+        </button>
       </div>
 
       {/* Directory Table */}
@@ -138,10 +214,8 @@ export default function AdminInstructorDirectory() {
               <tr className="border-b border-white/10 bg-white/5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
                 <th className="px-6 py-4">Instructor & Department ID</th>
                 <th className="px-6 py-4">Assigned Course Track</th>
-                <th className="px-6 py-4">Rating</th>
-                <th className="px-6 py-4">Students Roster</th>
                 <th className="px-6 py-4">Account Status</th>
-                <th className="px-6 py-4 text-right">Archiving Action</th>
+                <th className="px-6 py-4 text-right">Actions & Credential Dispatch</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-xs">
@@ -163,38 +237,42 @@ export default function AdminInstructorDirectory() {
                     {ins.courseHandled}
                   </td>
 
-                  <td className="px-6 py-4 font-mono font-bold text-amber-400 flex items-center gap-1">
-                    <Star className="w-3.5 h-3.5 fill-amber-400" /> {ins.rating}
-                  </td>
-
-                  <td className="px-6 py-4 font-mono font-bold text-white">
-                    {ins.assignedStudentsCount} Students
-                  </td>
-
                   <td className="px-6 py-4">
-                    {ins.status === 'ACTIVE' && (
+                    {ins.status === 'ACTIVE' ? (
                       <span className="text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-300 px-2.5 py-1 rounded-full border border-emerald-500/30">
                         Active Staff
                       </span>
-                    )}
-                    {ins.status === 'ARCHIVED' && (
+                    ) : (
                       <span className="text-[10px] font-extrabold uppercase bg-red-500/20 text-red-300 px-2.5 py-1 rounded-full border border-red-500/30">
-                        Archived (On File)
+                        Deactivated (Fired / Reassigned)
                       </span>
                     )}
                   </td>
 
                   <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => handleArchiveInstructor(ins.id)}
-                      className={`px-3 py-1.5 rounded-xl font-bold text-xs transition border ${
-                        ins.status === 'ARCHIVED'
-                          ? 'bg-emerald-600/20 border-emerald-500/30 text-emerald-300 hover:bg-emerald-600/30'
-                          : 'bg-red-600/20 border-red-500/30 text-red-300 hover:bg-red-600/30'
-                      }`}
-                    >
-                      {ins.status === 'ARCHIVED' ? 'Unarchive' : 'Archive Staff Record'}
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => handleResetPassword(ins)}
+                        className="px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                        title="Send / Reset Login Credentials"
+                      >
+                        <Key className="w-3.5 h-3.5" /> Dispatch Login
+                      </button>
+
+                      {ins.status === 'ACTIVE' && (
+                        <button
+                          onClick={() => {
+                            setFiringInstructor(ins);
+                            const otherIns = instructors.find((i) => i.id !== ins.id && i.status === 'ACTIVE');
+                            setSelectedReplacementId(otherIns ? otherIns.id : '');
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-red-600/20 hover:bg-red-600 border border-red-500/30 text-red-300 hover:text-white text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                          title="Replace / Fire Instructor"
+                        >
+                          <UserX className="w-3.5 h-3.5" /> Replace Instructor
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -203,14 +281,20 @@ export default function AdminInstructorDirectory() {
         </div>
       </div>
 
-      {/* Pre-Register Modal */}
+      {/* Provision Instructor Modal */}
       {isPreRegistering && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in text-left">
           <form onSubmit={handlePreRegister} className="bg-[#0F172A] border border-white/10 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative text-white">
             <h3 className="font-extrabold text-white text-base">Provision Instructor Account</h3>
             <p className="text-xs text-gray-400">
-              Generates a formatted department login ID (e.g. UGT2026/INSCS/A026) for the new instructor.
+              Generates a formatted department login ID (e.g. UGT2026/INSCS/A026) and auto-generates credentials for WhatsApp & Email dispatch.
             </p>
+
+            {errorMessage && (
+              <div className="p-3 rounded-xl bg-red-950/40 border border-red-500/40 text-xs text-red-300">
+                {errorMessage}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -263,6 +347,17 @@ export default function AdminInstructorDirectory() {
               />
             </div>
 
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-gray-300">Custom Password Code (Optional - Auto Generated if blank)</label>
+              <input
+                type="text"
+                placeholder="Leave blank to auto-generate (e.g. INS-8A4F92)"
+                value={customPasswordCode}
+                onChange={(e) => setCustomPasswordCode(e.target.value)}
+                className="w-full bg-[#1E293B] border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none placeholder-gray-500"
+              />
+            </div>
+
             <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
               <button
                 type="button"
@@ -273,15 +368,75 @@ export default function AdminInstructorDirectory() {
               </button>
               <button
                 type="submit"
-                className="px-5 py-2 text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition shadow-lg shadow-purple-500/20"
+                disabled={submitting}
+                className="px-5 py-2 text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white rounded-xl transition shadow-lg shadow-purple-500/20 disabled:opacity-50"
               >
-                Provision Account
+                {submitting ? 'Provisioning...' : 'Provision Account'}
               </button>
             </div>
           </form>
         </div>
       )}
 
+      {/* Replace / Fire Instructor Modal */}
+      {firingInstructor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in text-left">
+          <form onSubmit={handleExecuteReplace} className="bg-[#0F172A] border border-white/10 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative text-white">
+            <h3 className="font-extrabold text-white text-base text-red-400 flex items-center gap-2">
+              <UserX className="w-5 h-5" /> Replace / Fire Instructor
+            </h3>
+            <p className="text-xs text-gray-300 leading-relaxed">
+              Outgoing Instructor: <strong className="text-white">{firingInstructor.name}</strong> ({firingInstructor.departmentCode})
+              <br />
+              All assigned courses and student rosters will be transferred to the replacement instructor, and outgoing access will be revoked.
+            </p>
+
+            <div className="space-y-1.5 pt-2">
+              <label className="block text-xs font-bold text-gray-300">Select Replacement Instructor</label>
+              <select
+                required
+                value={selectedReplacementId}
+                onChange={(e) => setSelectedReplacementId(e.target.value)}
+                className="w-full bg-[#1E293B] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none font-bold"
+              >
+                <option value="">Select replacement instructor...</option>
+                {instructors
+                  .filter((i) => i.id !== firingInstructor.id && i.status === 'ACTIVE')
+                  .map((i) => (
+                    <option key={i.id} value={i.id}>
+                      {i.name} ({i.departmentCode})
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-white/10">
+              <button
+                type="button"
+                onClick={() => setFiringInstructor(null)}
+                className="px-4 py-2 text-xs font-semibold border border-white/10 text-gray-300 rounded-xl hover:bg-white/5 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isReplacing || !selectedReplacementId}
+                className="px-5 py-2 text-xs font-bold bg-red-600 hover:bg-red-500 text-white rounded-xl transition shadow-lg shadow-red-500/20 disabled:opacity-50"
+              >
+                {isReplacing ? 'Transferring Courses...' : 'Execute Instructor Replacement'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Credential Dispatch Modal */}
+      <CredentialDispatchModal
+        isOpen={activeDispatchModal}
+        onClose={() => setActiveDispatchModal(false)}
+        credentials={dispatchData}
+      />
     </div>
   );
 }
+

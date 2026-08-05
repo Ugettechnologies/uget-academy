@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSession, hashPassword, generateStudentUsername, generateInstructorUsername } from '@/lib/auth';
+import { getSession, hashPassword, generateStudentUsername, generateInstructorUsername, generateStaffUsername, generateAutoPassword } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { logAdminAction } from '@/lib/audit-log';
 import { z } from 'zod';
@@ -127,22 +127,18 @@ export async function POST(request: Request) {
       generatedUsername = generateStudentUsername();
     } else if (role === 'INSTRUCTOR') {
       generatedUsername = generateInstructorUsername(departmentCode);
+    } else if (role === 'STAFF') {
+      generatedUsername = generateStaffUsername();
     } else {
       generatedUsername = `ADM/${Math.floor(100 + Math.random() * 900)}`;
     }
 
-    // Generate Password Code
+    // Generate Auto Password Code
     let rawPasswordCode = '';
-    if (role === 'STUDENT') {
-      rawPasswordCode = crypto.randomUUID();
-    } else if (role === 'INSTRUCTOR') {
-      if (passwordCode && passwordCode.trim().length > 0) {
-        rawPasswordCode = passwordCode.trim();
-      } else {
-        rawPasswordCode = generateInstructorCode(departmentCode);
-      }
+    if (passwordCode && passwordCode.trim().length > 0) {
+      rawPasswordCode = passwordCode.trim();
     } else {
-      rawPasswordCode = passwordCode || crypto.randomUUID();
+      rawPasswordCode = generateAutoPassword(role);
     }
 
     const passwordHash = await hashPassword(rawPasswordCode);
@@ -288,7 +284,7 @@ export async function PATCH(request: Request) {
       if (passwordCode && passwordCode.trim().length > 0) {
         rawPasswordCode = passwordCode.trim();
       } else {
-        rawPasswordCode = crypto.randomUUID().slice(0, 8).toUpperCase();
+        rawPasswordCode = generateAutoPassword(targetUser.role);
       }
 
       const passwordHash = await hashPassword(rawPasswordCode);
