@@ -340,23 +340,110 @@ export default function AdminLayoutFrame({ user, children }: AdminLayoutFramePro
             </div>
 
             {/* Importer Section */}
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
-              <span className="text-xs font-extrabold text-cyan-400 uppercase tracking-wider block">Option 2: Import from uget-enrollment</span>
-              <p className="text-xs text-gray-300">Paste JSON payload from uget-enrollment portal to automatically register students in academy DB.</p>
-              <textarea
-                value={importJson}
-                onChange={(e) => setImportJson(e.target.value)}
-                placeholder='Paste JSON array here, e.g. [{"name": "John Doe", "email": "john@example.com"}, ...]'
-                className="w-full h-28 bg-[#1E293B] border border-white/10 rounded-xl p-3 text-xs font-mono text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 custom-scrollbar"
-              />
-              <button
-                onClick={handleImportStudents}
-                disabled={importLoading}
-                className="px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-extrabold flex items-center gap-2 transition disabled:opacity-50 cursor-pointer"
-              >
-                {importLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                Import Students into Academy
-              </button>
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-4">
+              <span className="text-xs font-extrabold text-cyan-400 uppercase tracking-wider block">Option 2: Import from File (.CSV or .JSON)</span>
+              <p className="text-xs text-gray-300">Upload a student roster file (.csv or .json) or paste JSON payload to automatically register students with duplicate detection.</p>
+              
+              {/* File Selector Box */}
+              <div className="border-2 border-dashed border-cyan-500/40 hover:border-cyan-400 bg-cyan-950/20 rounded-2xl p-5 text-center space-y-2 transition">
+                <Upload className="w-6 h-6 text-cyan-400 mx-auto animate-bounce" />
+                <label className="cursor-pointer px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold text-xs inline-block shadow-md">
+                  Browse & Upload .CSV / .JSON File
+                  <input
+                    type="file"
+                    accept=".csv, .json"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+
+                      const reader = new FileReader();
+                      reader.onload = async (event) => {
+                        const content = event.target?.result as string;
+                        if (!content) return;
+
+                        let studentList: any[] = [];
+                        try {
+                          if (file.name.endsWith('.json')) {
+                            studentList = JSON.parse(content);
+                          } else if (file.name.endsWith('.csv')) {
+                            const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
+                            if (lines.length >= 2) {
+                              const headers = lines[0].toLowerCase().split(',');
+                              for (let i = 1; i < lines.length; i++) {
+                                const row = lines[i].split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
+                                if (row.length === 0) continue;
+
+                                const nameIdx = headers.findIndex((h) => h.includes('name'));
+                                const emailIdx = headers.findIndex((h) => h.includes('email'));
+                                const phoneIdx = headers.findIndex((h) => h.includes('phone'));
+
+                                const fullName = nameIdx !== -1 ? row[nameIdx] : `${row[0]} ${row[1] || ''}`;
+                                const email = emailIdx !== -1 ? row[emailIdx] : row[1];
+                                const phone = phoneIdx !== -1 ? row[phoneIdx] : row[2];
+
+                                if (email && email.includes('@')) {
+                                  studentList.push({
+                                    name: fullName || 'Enrolled Student',
+                                    email: email,
+                                    phone: phone || null,
+                                  });
+                                }
+                              }
+                            }
+                          }
+
+                          if (studentList.length > 0) {
+                            setImportLoading(true);
+                            const res = await fetch('/api/admin/students/import', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ students: studentList }),
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                              triggerToast('success', data.message);
+                              setShowDataSyncModal(false);
+                              setImportJson('');
+                            } else {
+                              triggerToast('error', data.error || 'Import failed');
+                            }
+                          } else {
+                            triggerToast('error', 'No valid student records found in file.');
+                          }
+                        } catch {
+                          triggerToast('error', 'Error parsing file content');
+                        } finally {
+                          setImportLoading(false);
+                        }
+                      };
+                      reader.readAsText(file);
+                    }}
+                    className="hidden"
+                  />
+                </label>
+                <p className="text-[10px] text-gray-400 font-mono">
+                  Supported CSV headers: name, email, phone (or firstName, lastName, email)
+                </p>
+              </div>
+
+              {/* Textarea Fallback */}
+              <div className="space-y-2 pt-1">
+                <span className="text-[11px] font-bold text-gray-300 block">Or Paste JSON Array:</span>
+                <textarea
+                  value={importJson}
+                  onChange={(e) => setImportJson(e.target.value)}
+                  placeholder='Paste JSON array here, e.g. [{"name": "John Doe", "email": "john@example.com"}, ...]'
+                  className="w-full h-24 bg-[#1E293B] border border-white/10 rounded-xl p-3 text-xs font-mono text-white placeholder-gray-500 focus:outline-none focus:border-cyan-500 custom-scrollbar"
+                />
+                <button
+                  onClick={handleImportStudents}
+                  disabled={importLoading || !importJson.trim()}
+                  className="w-full px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-extrabold flex items-center justify-center gap-2 transition disabled:opacity-50 cursor-pointer"
+                >
+                  {importLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  Import Pasted JSON Roster
+                </button>
+              </div>
             </div>
           </div>
         </div>

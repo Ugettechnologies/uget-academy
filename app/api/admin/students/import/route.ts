@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession, hashPassword } from '@/lib/auth';
+import { getSession, hashPassword, generateStudentUsername, generateAutoPassword } from '@/lib/auth';
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -19,30 +19,33 @@ export async function POST(request: Request) {
       );
     }
 
-    const defaultPasswordHash = await hashPassword('UgetAcademy2026!');
     let importedCount = 0;
     let skippedCount = 0;
 
     for (const studentData of students) {
       const email = studentData.email?.trim().toLowerCase();
-      const firstName = studentData.firstName?.trim() || studentData.name?.split(' ')[0] || 'Enrolled';
-      const lastName = studentData.lastName?.trim() || studentData.name?.split(' ').slice(1).join(' ') || 'Student';
-      const phone = studentData.phone?.trim() || null;
-      const username = studentData.username?.trim() || (email ? email.split('@')[0] : null);
-
       if (!email) {
         skippedCount++;
         continue;
       }
 
-      const existing = await prisma.user.findFirst({
-        where: { OR: [{ email }, { username: username || undefined }] },
+      const firstName = studentData.firstName?.trim() || studentData.name?.split(' ')[0] || 'Enrolled';
+      const lastName = studentData.lastName?.trim() || studentData.name?.split(' ').slice(1).join(' ') || 'Student';
+      const phone = studentData.phone?.trim() || null;
+
+      // Smart Duplicate Detection by Email
+      const existingUser = await prisma.user.findFirst({
+        where: { email },
       });
 
-      if (existing) {
+      if (existingUser) {
         skippedCount++;
         continue;
       }
+
+      const studentUsername = studentData.username?.trim() || generateStudentUsername();
+      const rawPassword = generateAutoPassword('STUDENT');
+      const passwordHash = await hashPassword(rawPassword);
 
       await prisma.user.create({
         data: {
@@ -50,8 +53,8 @@ export async function POST(request: Request) {
           firstName,
           lastName,
           phone,
-          username,
-          passwordHash: defaultPasswordHash,
+          username: studentUsername,
+          passwordHash,
           role: 'STUDENT',
           emailVerified: true,
           status: 'APPROVED',
@@ -61,9 +64,18 @@ export async function POST(request: Request) {
       importedCount++;
     }
 
+    let message = '';
+    if (importedCount > 0 && skippedCount > 0) {
+      message = `Imported ${importedCount} new student(s). Skipped ${skippedCount} duplicate(s) already in academy database.`;
+    } else if (importedCount > 0) {
+      message = `Successfully imported all ${importedCount} new student(s) into academy database.`;
+    } else {
+      message = `All ${skippedCount} student(s) in payload are already registered in academy database (0 duplicates added).`;
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Successfully imported ${importedCount} student(s) from enrollment portal.`,
+      message,
       importedCount,
       skippedCount,
     });
